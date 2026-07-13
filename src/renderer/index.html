@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+<title>HH Parser</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<symbol id="icon-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+<symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+<symbol id="icon-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+<symbol id="icon-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+<symbol id="icon-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></symbol>
+<symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+<symbol id="icon-spider" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="13" x2="7" y2="13"/><line x1="17" y1="13" x2="22.95" y2="13"/><line x1="3.87" y1="4.87" x2="8.11" y2="9.11"/><line x1="15.89" y1="15.89" x2="20.13" y2="20.13"/><line x1="3.87" y1="21.13" x2="8.11" y2="16.89"/><line x1="15.89" y1="8.11" x2="20.13" y2="3.87"/></symbol>
+<symbol id="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></symbol>
+<symbol id="icon-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+<symbol id="icon-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></symbol>
+<symbol id="icon-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></symbol>
+<symbol id="icon-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></symbol>
+<symbol id="icon-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></symbol>
+<symbol id="icon-stop" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></symbol>
+<symbol id="icon-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
+<symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></symbol>
+<symbol id="icon-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+<symbol id="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></symbol>
+<symbol id="icon-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
+<symbol id="icon-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></symbol>
+<symbol id="icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+<symbol id="icon-ban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></symbol>
+<symbol id="icon-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></symbol>
+<symbol id="icon-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></symbol>
+<symbol id="icon-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
+</svg>
+<div id="app">
+
+<!-- ===== SPLASH ===== -->
+<div id="splash" class="splash">
+  <div class="splash-inner">
+    <div class="splash-logo">
+      <svg class="icon" style="width:32px;height:32px" aria-hidden="true"><use href="#icon-target"/></svg>
+    </div>
+    <div class="splash-title">HH Job Tool</div>
+    <div class="splash-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== AUTH GATE ===== -->
+<div id="authGate" class="auth-gate" style="display:none">
+  <div class="auth-gate-card">
+    <div class="auth-gate-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#icon-key"/></svg></div>
+    <h1 class="auth-gate-title">Вход в hh.ru</h1>
+    <p class="auth-gate-desc">Чтобы искать вакансии, откликаться и видеть свои отклики, нужно войти в аккаунт hh.ru. Откроется окно браузера для авторизации.</p>
+
+    <div class="form-group">
+      <label>Телефон или Email</label>
+      <input id="loginInput" type="text" placeholder="900 000-00-00 или email@example.com">
+    </div>
+
+    <div class="form-group" id="passwordGroup">
+      <label>Пароль</label>
+      <div class="input-with-icon">
+        <input id="passwordInput" type="password" placeholder="Пароль от hh.ru">
+        <button type="button" class="btn-icon-inline" id="togglePass" title="Показать/скрыть">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-eye"/></svg>
+        </button>
+      </div>
+      <div class="form-hint">Для email-входа. При входе по телефону можно оставить пустым — придёт СМС.</div>
+    </div>
+
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-primary" id="authStartBtn">
+        <svg class="icon" aria-hidden="true"><use href="#icon-key"/></svg>
+        <span class="btn-text">Войти</span>
+      </button>
+      <button class="btn btn-danger" id="authCancelBtn" style="display:none">
+        <svg class="icon" aria-hidden="true"><use href="#icon-stop"/></svg>
+        <span class="btn-text">Отменить</span>
+      </button>
+    </div>
+
+    <div class="card log-card" id="authLogCard" style="display:none; margin-top:14px; max-height:180px; flex:none">
+      <div class="log-header">
+        <div class="log-header-left"><svg class="icon icon-sm" aria-hidden="true"><use href="#icon-key"/></svg><span>Ход авторизации</span></div>
+        <div class="log-header-right"><button class="btn-icon" id="clearAuthLog" title="Очистить"><svg class="icon icon-sm" aria-hidden="true"><use href="#icon-trash"/></svg></button></div>
+      </div>
+      <div class="log-body" id="authLog" style="max-height:120px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== OTP MODAL ===== -->
+<div id="otpModal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <div class="modal-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#icon-phone"/></svg></div>
+    <div class="modal-title">Введите код из СМС</div>
+    <div class="modal-desc">hh.ru отправил одноразовый код. Введите его здесь или прямо в окне браузера — программа продолжит автоматически.</div>
+    <input id="otpInput" class="otp-input" type="text" inputmode="numeric" maxlength="6" placeholder="0000">
+    <button class="btn btn-primary" id="otpSubmitBtn">
+      <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+      <span class="btn-text">Подтвердить</span>
+    </button>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#icon-target"/></svg></div>
+    <div><div class="logo-text">HH Job Tool</div><div class="logo-sub">hh.ru автоматизация</div></div>
+  </div>
+  <nav class="nav">
+    <button class="nav-item active" data-tab="search">
+      <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><span>Поиск</span>
+    </button>
+    <button class="nav-item" data-tab="autoapply">
+      <svg class="icon" aria-hidden="true"><use href="#icon-bolt"/></svg><span>Автоотклик</span>
+    </button>
+    <button class="nav-item" data-tab="negotiations">
+      <svg class="icon" aria-hidden="true"><use href="#icon-inbox"/></svg><span>Мои отклики</span>
+    </button>
+    <button class="nav-item" data-tab="settings">
+      <svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg><span>Настройки</span>
+    </button>
+    <button class="nav-item" data-tab="crawler">
+      <svg class="icon" aria-hidden="true"><use href="#icon-spider"/></svg><span>Краулер</span>
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status-pill">
+      <div class="status-dot" id="authDot"></div>
+      <span id="authStatusLabel">Нет сессии</span>
+      <button class="btn-icon-mini" id="logoutBtn" title="Выйти из аккаунта" style="display:none">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-logout"/></svg>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- Content -->
+<main class="content">
+
+<!-- ===== SEARCH ===== -->
+<section id="tab-search" class="tab active">
+  <div class="tab-header">
+    <div class="tab-header-left">
+      <h1>Поиск вакансий</h1>
+    </div>
+  </div>
+
+  <div id="savedSearches" class="saved-searches" style="display:none"></div>
+
+  <div class="search-form card">
+    <div class="search-form-row">
+      <div class="form-group flex2">
+        <label>Должность / ключевые слова</label>
+        <input id="s-text" type="text" placeholder="Python разработчик, SQL, Data Engineer...">
+      </div>
+      <div class="form-group">
+        <label>Регион (код hh, через запятую)</label>
+        <input id="s-area" type="text" placeholder="1 = Москва, 2 = СПб">
+      </div>
+      <div class="form-group">
+        <label>Зарплата от</label>
+        <input id="s-salary" type="number" placeholder="100000">
+      </div>
+      <div class="form-group">
+        <label>Страниц</label>
+        <input id="s-pages" type="number" value="3" min="1" max="10" style="width:70px">
+      </div>
+    </div>
+    <div class="search-form-row">
+      <div class="form-group">
+        <label>Опыт</label>
+        <select id="s-experience">
+          <option value="">Любой</option>
+          <option value="noExperience">Без опыта</option>
+          <option value="between1And3">1–3 года</option>
+          <option value="between3And6">3–6 лет</option>
+          <option value="moreThan6">Более 6 лет</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Период</label>
+        <select id="s-period">
+          <option value="">За всё время</option>
+          <option value="1">За сутки</option>
+          <option value="3">За 3 дня</option>
+          <option value="7">За неделю</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Сортировка hh.ru</label>
+        <select id="s-order">
+          <option value="relevance">По релевантности</option>
+          <option value="publication_time">По дате публикации</option>
+          <option value="salary_desc">Зарплата ↓</option>
+          <option value="salary_asc">Зарплата ↑</option>
+        </select>
+      </div>
+      <div class="form-group center-v">
+        <label>&nbsp;</label>
+        <label class="checkbox-label"><input type="checkbox" id="s-salary-only"> Только с зарплатой</label>
+      </div>
+      <div class="form-group center-v">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" id="searchBtn">
+          <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg>
+          <span class="btn-text">Найти</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="search-advanced-toggle" id="searchAdvToggle">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-filter"/></svg>
+      <span>Дополнительные фильтры</span>
+      <svg class="icon icon-sm chevron" aria-hidden="true"><use href="#icon-chevron-right"/></svg>
+    </div>
+
+    <div id="searchAdvanced" class="search-advanced" style="display:none">
+      <div class="filter-grid">
+
+        <div class="filter-group">
+          <div class="filter-group-title">Где искать</div>
+          <label class="checkbox-label"><input type="checkbox" class="sf-field" value="name" checked> В названии вакансии</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-field" value="company_name"> В названии компании</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-field" value="description"> В описании вакансии</label>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">Зарплата</div>
+          <div class="filter-inline">
+            <select id="s-salary-mode">
+              <option value="MONTH">За месяц</option>
+              <option value="SHIFT">За смену</option>
+              <option value="HOUR">За час</option>
+              <option value="FLY_IN_FLY_OUT">За вахту</option>
+              <option value="SERVICE">За услугу</option>
+            </select>
+            <select id="s-currency">
+              <option value="RUR">RUB</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="KZT">KZT</option>
+            </select>
+          </div>
+          <input id="s-salary-max" type="number" placeholder="Зарплата до (клиентский фильтр)">
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">Формат работы</div>
+          <label class="checkbox-label"><input type="checkbox" class="sf-wformat" value="ON_SITE"> На месте</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-wformat" value="REMOTE"> Удалённо</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-wformat" value="HYBRID"> Гибрид</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-wformat" value="FIELD_WORK"> Разъездной</label>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">Тип занятости</div>
+          <label class="checkbox-label"><input type="checkbox" class="sf-empform" value="FULL"> Полная</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-empform" value="PART"> Частичная</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-empform" value="PROJECT"> Подработка</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-empform" value="FLY_IN_FLY_OUT"> Вахта</label>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">График по дням</div>
+          <label class="checkbox-label"><input type="checkbox" class="sf-sched" value="FIVE_ON_TWO_OFF"> 5/2</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-sched" value="TWO_ON_TWO_OFF"> 2/2</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-sched" value="SIX_ON_ONE_OFF"> 6/1</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-sched" value="FOUR_ON_TWO_OFF"> 4/2</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-sched" value="THREE_ON_THREE_OFF"> 3/3</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-sched" value="FLEXIBLE"> Свободный</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-sched" value="WEEKEND"> По выходным</label>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">Рабочие часы</div>
+          <label class="checkbox-label"><input type="checkbox" class="sf-hours" value="HOURS_4"> 4 часа</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-hours" value="HOURS_6"> 6 часов</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-hours" value="HOURS_8"> 8 часов</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-hours" value="HOURS_12"> 12 часов</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-hours" value="FLEXIBLE"> По договорённости</label>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">Образование</div>
+          <select id="s-education">
+            <option value="">Любое</option>
+            <option value="not_required_or_not_specified">Не требуется</option>
+            <option value="special_secondary">Среднее проф.</option>
+            <option value="higher">Высшее</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">Метки</div>
+          <label class="checkbox-label"><input type="checkbox" class="sf-label" value="not_from_agency"> Без агентств</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-label" value="with_address"> С адресом</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-label" value="accredited_it"> ИТ-компании</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-label" value="internship"> Стажировка</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-label" value="night_shifts"> Ночные смены</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-label" value="low_performance"> &lt;10 откликов</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-label" value="accept_kids"> С 14 лет</label>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">Инклюзивность</div>
+          <label class="checkbox-label"><input type="checkbox" class="sf-incl" value="HEARING"> Нарушения слуха</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-incl" value="VISION"> Нарушения зрения</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-incl" value="MOBILITY"> Нарушения мобильности</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-incl" value="MENTAL"> Ментальные особенности</label>
+          <label class="checkbox-label"><input type="checkbox" class="sf-incl" value="CHRONIC_DISEASES"> Хронические заболевания</label>
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-title">Клиентские фильтры <span class="filter-badge">локально</span></div>
+          <input id="s-exclude" type="text" placeholder="Исключить слова (через запятую)">
+          <input id="s-min-rating" type="number" step="0.1" min="0" max="5" placeholder="Мин. рейтинг компании">
+          <input id="s-min-reviews" type="number" min="0" placeholder="Мин. кол-во отзывов">
+          <label class="checkbox-label"><input type="checkbox" id="s-hide-responded"> Скрыть откликнутые</label>
+          <label class="checkbox-label"><input type="checkbox" id="s-accept-temporary"> Оформление по ГПХ</label>
+        </div>
+
+      </div>
+      <div class="search-advanced-footer">
+        <button class="btn btn-ghost btn-sm" id="resetFiltersBtn">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-x"/></svg>
+          <span class="btn-text">Сбросить фильтры</span>
+        </button>
+        <button class="btn btn-ghost btn-sm" id="saveSearchBtn">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-save"/></svg>
+          <span class="btn-text">Сохранить поиск</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="searchMeta" class="search-meta" style="display:none">
+    <div class="search-meta-left">
+      <svg class="icon icon-sm" aria-hidden="true" style="color:var(--accent2)"><use href="#icon-filter"/></svg>
+      <span id="searchTotal" class="search-meta-count"></span>
+      <span id="searchFiltered" class="search-meta-filtered" style="display:none"></span>
+    </div>
+    <div class="search-meta-right">
+      <select id="searchSort" class="search-sort">
+        <option value="default">Сортировка: hh.ru</option>
+        <option value="salary-desc">Зарплата ↓</option>
+        <option value="salary-asc">Зарплата ↑</option>
+        <option value="rating-desc">Рейтинг ↓</option>
+        <option value="title">Название А-Я</option>
+        <option value="employer">Компания А-Я</option>
+      </select>
+      <div class="page-nav">
+        <button class="btn btn-ghost btn-sm" id="searchPrev" disabled>
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chevron-left"/></svg>
+        </button>
+        <span id="searchPage" class="page-info">1</span>
+        <button class="btn btn-ghost btn-sm" id="searchNext">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-chevron-right"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="searchResults" class="vacancy-list"></div>
+  <div id="searchEmpty" class="empty-state">
+    <div class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#icon-search"/></svg></div>
+    <div>Введите запрос и нажмите «Найти»</div>
+  </div>
+</section>
+
+<!-- ===== AUTO-APPLY ===== -->
+<section id="tab-autoapply" class="tab">
+  <div class="tab-header">
+    <div class="tab-header-left">
+      <h1>Автоотклик</h1>
+      <p class="subtitle">Программа сама откликнется на подходящие вакансии</p>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg> Параметры поиска</div>
+      <div class="form-group"><label>Запрос</label><input id="aa-text" type="text" placeholder="Python разработчик"></div>
+      <div class="form-group" style="margin-top:10px"><label>Регион (код, через запятую)</label><input id="aa-area" type="text" placeholder="1 = Москва, 2 = СПб"></div>
+      <div class="form-group" style="margin-top:10px">
+        <label>Опыт</label>
+        <select id="aa-experience">
+          <option value="">Любой</option>
+          <option value="noExperience">Без опыта</option>
+          <option value="between1And3">1–3 года</option>
+          <option value="between3And6">3–6 лет</option>
+          <option value="moreThan6">Более 6 лет</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label>Период публикации</label>
+        <select id="aa-period">
+          <option value="">За всё время</option>
+          <option value="1">За сутки</option>
+          <option value="3">За 3 дня</option>
+          <option value="7">За неделю</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label>Сортировка hh.ru</label>
+        <select id="aa-order">
+          <option value="relevance">По релевантности</option>
+          <option value="publication_time" selected>По дате (новые сначала)</option>
+          <option value="salary_desc">Зарплата ↓</option>
+          <option value="salary_asc">Зарплата ↑</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-filter"/></svg> Серверные фильтры hh.ru</div>
+      <div class="filter-grid" style="grid-template-columns:1fr">
+        <div class="filter-group">
+          <div class="filter-group-title">Формат работы</div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px">
+            <label class="checkbox-label"><input type="checkbox" class="aa-wformat" value="ON_SITE"> На месте</label>
+            <label class="checkbox-label"><input type="checkbox" class="aa-wformat" value="REMOTE"> Удалённо</label>
+            <label class="checkbox-label"><input type="checkbox" class="aa-wformat" value="HYBRID"> Гибрид</label>
+            <label class="checkbox-label"><input type="checkbox" class="aa-wformat" value="FIELD_WORK"> Разъездной</label>
+          </div>
+        </div>
+        <div class="filter-group">
+          <div class="filter-group-title">Тип занятости</div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px">
+            <label class="checkbox-label"><input type="checkbox" class="aa-empform" value="FULL"> Полная</label>
+            <label class="checkbox-label"><input type="checkbox" class="aa-empform" value="PART"> Частичная</label>
+            <label class="checkbox-label"><input type="checkbox" class="aa-empform" value="PROJECT"> Подработка</label>
+            <label class="checkbox-label"><input type="checkbox" class="aa-empform" value="FLY_IN_FLY_OUT"> Вахта</label>
+          </div>
+        </div>
+        <div class="filter-group">
+          <div class="filter-group-title">Образование</div>
+          <select id="aa-education">
+            <option value="">Любое</option>
+            <option value="not_required_or_not_specified">Не требуется</option>
+            <option value="special_secondary">Среднее проф.</option>
+            <option value="higher">Высшее</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <div class="filter-group-title">Метки</div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px">
+            <label class="checkbox-label"><input type="checkbox" class="aa-label" value="not_from_agency"> Без агентств</label>
+            <label class="checkbox-label"><input type="checkbox" class="aa-label" value="accredited_it"> ИТ-компании</label>
+            <label class="checkbox-label"><input type="checkbox" class="aa-label" value="with_address"> С адресом</label>
+            <label class="checkbox-label"><input type="checkbox" class="aa-label" value="low_performance"> &lt;10 откликов</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-filter"/></svg> Клиентские фильтры</div>
+      <div class="form-group"><label>Мин. зарплата</label><input id="aa-min-salary" type="number" placeholder="Не ограничена"></div>
+      <div class="form-group" style="margin-top:10px"><label>Макс. зарплата</label><input id="aa-max-salary" type="number" placeholder="Не ограничена"></div>
+      <div class="form-group" style="margin-top:10px">
+        <label class="checkbox-label"><input type="checkbox" id="aa-only-salary"> Только с указанной зарплатой</label>
+      </div>
+      <div class="form-group" style="margin-top:10px"><label>Мин. рейтинг компании</label><input id="aa-min-rating" type="number" step="0.1" min="0" max="5" placeholder="напр. 3.5"></div>
+      <div class="form-group" style="margin-top:10px"><label>Мин. кол-во отзывов</label><input id="aa-min-reviews" type="number" min="0" placeholder="напр. 10"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-filter"/></svg> Ключевые слова и списки</div>
+      <div class="form-group">
+        <label>Ключевые слова в заголовке (через запятую)</label>
+        <input id="aa-keywords" type="text" placeholder="Python, Data, SQL">
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label>Режим ключевых слов</label>
+        <select id="aa-keyword-mode">
+          <option value="any">Любое из слов (ИЛИ)</option>
+          <option value="all">Все слова (И)</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label>Исключить слова (в названии/компании, через запятую)</label>
+        <input id="aa-exclude" type="text" placeholder="менеджер, стажёр">
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label>White-list компаний (через запятую — только к ним)</label>
+        <input id="aa-whitelist" type="text" placeholder="Яндекс, Сбер, Тинькофф">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <svg class="icon" aria-hidden="true"><use href="#icon-mail"/></svg> Шаблоны сопроводительных писем
+      <button class="btn btn-ghost btn-sm" id="aaAddTemplate" style="margin-left:auto">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-save"/></svg>
+        <span class="btn-text">Добавить</span>
+      </button>
+    </div>
+    <div id="aaTemplates" class="aa-templates"></div>
+    <div class="form-hint" style="margin-top:10px">Доступные переменные: <code>{title}</code> — название вакансии, <code>{employer}</code> — компания, <code>{salary}</code> — зарплата. При отклике случайно выбирается один из шаблонов.</div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-bolt"/></svg> Поведение</div>
+      <div class="form-group"><label>Макс. откликов за запуск</label><input id="aa-max" type="number" value="20" min="1" max="500"></div>
+      <div class="form-group" style="margin-top:10px"><label>Макс. страниц сканирования</label><input id="aa-max-pages" type="number" value="10" min="1" max="50"></div>
+      <div class="form-group" style="margin-top:10px"><label>Макс. ошибок до остановки</label><input id="aa-max-errors" type="number" value="5" min="0" max="100"></div>
+      <div class="form-group" style="margin-top:10px"><label>Попыток при ошибке отклика</label><input id="aa-retry" type="number" value="1" min="1" max="5"></div>
+      <div class="form-group" style="margin-top:10px">
+        <label class="checkbox-label"><input type="checkbox" id="aa-dry-run"> Пробный прогон (без реальных откликов)</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg> Расписание</div>
+      <div class="form-group">
+        <label class="checkbox-label"><input type="checkbox" id="aa-schedule-enabled"> Повторять каждые</label>
+      </div>
+      <div class="form-group" style="margin-top:10px">
+        <label>Интервал (часы)</label>
+        <input id="aa-schedule-interval" type="number" value="6" min="1" max="168" style="width:100px">
+      </div>
+      <div class="form-hint" style="margin-top:8px">При включении автоотклик будет перезапускаться через заданный интервал, откликаясь только на новые вакансии.</div>
+      <div id="aaScheduleStatus" style="display:none;margin-top:12px;font-size:12px;color:var(--accent2);font-weight:500"></div>
+    </div>
+  </div>
+
+  <div class="stats-row" id="aaStats" style="display:none">
+    <div class="stat-card"><div class="stat-val" id="aa-applied">0</div><div class="stat-label">Откликнулись</div></div>
+    <div class="stat-card"><div class="stat-val ns-viewed" id="aa-skipped">0</div><div class="stat-label">Пропущено</div></div>
+    <div class="stat-card"><div class="stat-val ns-reject" id="aa-errors">0</div><div class="stat-label">Ошибок</div></div>
+    <div class="stat-card"><div class="stat-val ns-new" id="aa-page">0</div><div class="stat-label">Страница</div></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="aaStartBtn">
+      <svg class="icon" aria-hidden="true"><use href="#icon-bolt"/></svg>
+      <span class="btn-text">Запустить автоотклик</span>
+    </button>
+    <button class="btn btn-danger" id="aaStopBtn" style="display:none">
+      <svg class="icon" aria-hidden="true"><use href="#icon-stop"/></svg>
+      <span class="btn-text">Остановить</span>
+    </button>
+  </div>
+  <div class="card log-card" id="aaLogCard" style="display:none; margin-top:2px">
+    <div class="log-header">
+      <div class="log-header-left"><svg class="icon icon-sm" aria-hidden="true"><use href="#icon-bolt"/></svg><span>Лог автоотклика</span></div>
+      <div class="log-header-right"><button class="btn-icon" id="clearAaLog" title="Очистить"><svg class="icon icon-sm" aria-hidden="true"><use href="#icon-trash"/></svg></button></div>
+    </div>
+    <div class="log-body" id="aaLog"></div>
+  </div>
+</section>
+
+<!-- ===== NEGOTIATIONS ===== -->
+<section id="tab-negotiations" class="tab">
+  <div class="tab-header">
+    <div class="tab-header-left"><h1>Мои отклики</h1></div>
+    <button class="btn btn-ghost btn-sm" id="negoRefreshBtn">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+      <span class="btn-text">Обновить</span>
+    </button>
+  </div>
+  <div id="negoLoading" class="loading-state" style="display:none">
+    <div class="spinner"></div> Загружаем отклики с hh.ru...
+  </div>
+  <div id="negoStats" class="stats-row" style="display:none">
+    <div class="stat-card"><div class="stat-val" id="ns-total">0</div><div class="stat-label">Всего</div></div>
+    <div class="stat-card"><div class="stat-val ns-invite" id="ns-invite">0</div><div class="stat-label">Приглашения</div></div>
+    <div class="stat-card"><div class="stat-val ns-reject" id="ns-reject">0</div><div class="stat-label">Отказы</div></div>
+    <div class="stat-card"><div class="stat-val ns-viewed" id="ns-viewed">0</div><div class="stat-label">Просмотрены</div></div>
+    <div class="stat-card"><div class="stat-val ns-new" id="ns-new">0</div><div class="stat-label">Новые</div></div>
+  </div>
+  <div id="negoToolbar" class="nego-toolbar" style="display:none">
+    <div class="nego-filters">
+      <button class="nego-filter-btn active" data-filter="all">Все <span class="filter-count" id="fc-all">0</span></button>
+      <button class="nego-filter-btn" data-filter="invite">Приглашения <span class="filter-count" id="fc-invite">0</span></button>
+      <button class="nego-filter-btn" data-filter="reject">Отказы <span class="filter-count" id="fc-reject">0</span></button>
+      <button class="nego-filter-btn" data-filter="viewed">Просмотрены <span class="filter-count" id="fc-viewed">0</span></button>
+      <button class="nego-filter-btn" data-filter="new">Новые <span class="filter-count" id="fc-new">0</span></button>
+    </div>
+    <div class="nego-toolbar-right">
+      <input id="negoSearch" type="text" class="nego-search" placeholder="Поиск по вакансии или компании...">
+      <select id="negoSort">
+        <option value="default">Порядок hh.ru</option>
+        <option value="invite-first">Приглашения сначала</option>
+        <option value="reject-last">Отказы в конце</option>
+        <option value="title">По названию А-Я</option>
+      </select>
+    </div>
+  </div>
+  <div id="negoList" class="nego-list"></div>
+  <div id="negoEmpty" class="empty-state">
+    <div class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#icon-inbox"/></svg></div>
+    <div>Нажмите «Обновить» для загрузки откликов</div>
+  </div>
+</section>
+
+<!-- ===== SETTINGS ===== -->
+<section id="tab-settings" class="tab">
+  <div class="tab-header">
+    <div class="tab-header-left"><h1>Настройки</h1></div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-file"/></svg> Резюме для откликов</div>
+      <div id="resumesList" class="resumes-list"><div class="text-muted">Нажмите «Загрузить» для получения списка</div></div>
+      <button class="btn btn-ghost btn-sm" id="loadResumesBtn" style="margin-top:12px">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+        <span class="btn-text">Загрузить резюме</span>
+      </button>
+    </div>
+    <div class="card">
+      <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg> Задержки между откликами</div>
+      <div class="form-group"><label>Минимальная (секунды)</label><input id="cfg-delay-min" type="number" value="8" min="3" max="60"></div>
+      <div class="form-group" style="margin-top:10px"><label>Максимальная (секунды)</label><input id="cfg-delay-max" type="number" value="15" min="5" max="120"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-ban"/></svg> Чёрный список компаний</div>
+    <div class="form-group"><label>Названия компаний (каждое с новой строки)</label><textarea id="cfg-blacklist" rows="5" placeholder="ООО Рога и Копыта&#10;МММ&#10;..."></textarea></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="saveSettingsBtn">
+      <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
+      <span class="btn-text">Сохранить</span>
+    </button>
+    <span id="settingsSaved" class="save-notice" style="display:none">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-check"/></svg> Сохранено
+    </span>
+  </div>
+</section>
+
+<!-- ===== CRAWLER ===== -->
+<section id="tab-crawler" class="tab">
+  <div class="tab-header">
+    <div class="tab-header-left">
+      <h1>Краулер</h1>
+      <p class="subtitle">Сканирование страниц hh.ru и сбор data-qa элементов</p>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-val" id="st-visited">0</div><div class="stat-label">Страниц</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-queue">0</div><div class="stat-label">В очереди</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-vacancies">0</div><div class="stat-label">Вакансий</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-processed">0</div><div class="stat-label">За сессию</div></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="crawlStartBtn">
+      <svg class="icon" aria-hidden="true"><use href="#icon-play"/></svg>
+      <span class="btn-text">Запустить</span>
+    </button>
+    <button class="btn btn-danger" id="crawlStopBtn" style="display:none">
+      <svg class="icon" aria-hidden="true"><use href="#icon-stop"/></svg>
+      <span class="btn-text">Остановить</span>
+    </button>
+  </div>
+  <div class="card log-card">
+    <div class="log-header">
+      <div class="log-header-left"><svg class="icon icon-sm" aria-hidden="true"><use href="#icon-spider"/></svg><span>Лог краулера</span></div>
+      <div class="log-header-right">
+        <span id="crawlCurrentPage" class="log-current"></span>
+        <button class="btn-icon" id="clearCrawlLog" title="Очистить"><svg class="icon icon-sm" aria-hidden="true"><use href="#icon-trash"/></svg></button>
+      </div>
+    </div>
+    <div class="log-body" id="crawlLog"></div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

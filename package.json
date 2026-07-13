@@ -1,0 +1,123 @@
+{
+  "name": "hhparser",
+  "version": "1.0.0",
+  "description": "Desktop-инструмент для hh.ru: поиск вакансий, автоотклики и краулер data-qa элементов",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --inspect",
+    "cli:auth": "node init.js",
+    "cli:parse": "node parse.js",
+    "check": "node --check init.js && node --check parse.js && node --check src/main.js && node --check src/preload.js && node --check src/renderer/app.js && node --check src/lib/auth.js && node --check src/lib/crawler.js && node --check src/lib/vacancies.js && node --check src/lib/negotiations.js && node --check src/lib/profile.js && node --check src/lib/install-browser.js",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win --x64",
+    "dist:mac": "electron-builder --mac --arm64 --x64",
+    "dist:linux": "electron-builder --linux --x64"
+  },
+  "keywords": [
+    "hh.ru",
+    "headhunter",
+    "vacancy",
+    "job-search",
+    "electron",
+    "playwright",
+    "parser",
+    "auto-apply"
+  ],
+  "author": "lonestill",
+  "license": "ISC",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lonestill/hruhru.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lonestill/hruhru/issues"
+  },
+  "homepage": "https://github.com/lonestill/hruhru#readme",
+  "dependencies": {
+    "playwright": "^1.61.1",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^25.1.8"
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
+  },
+  "build": {
+    "appId": "ru.lonestill.hhparser",
+    "productName": "HH Job Tool",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "init.js",
+      "parse.js",
+      "package.json",
+      "package-lock.json",
+      ".env.example",
+      "README.md",
+      "LICENSE"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/playwright/**",
+      "node_modules/playwright-core/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
