@@ -349,6 +349,22 @@ ipcMain.handle('app:openDataPath', () => {
     return { ok: true };
 });
 
+ipcMain.handle('app:notify', (_e, payload) => {
+    try {
+        const n = new Notification({
+            title: payload.title || 'HH Job Tool',
+            body:  payload.body  || '',
+            silent: false,
+        });
+        n.on('click', () => {
+            if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
+            if (payload.url) shell.openExternal(payload.url);
+        });
+        n.show();
+    } catch (e) { /* ignore */ }
+    return { ok: true };
+});
+
 ipcMain.handle('app:getAutoLaunch', () => {
     return app.getLoginItemSettings().openAtLogin;
 });

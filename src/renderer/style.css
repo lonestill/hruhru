@@ -1003,3 +1003,170 @@ mark { background: var(--accent-bg); color: var(--accent2); border-radius: 3px; 
 .ctx-sep { height: 1px; background: var(--border); margin: 4px 2px; }
 .vacancy-card.hidden { opacity: .35; }
 .vacancy-card.hidden .vc-actions { display: none; }
+
+/* ---- Compare modal ---- */
+.compare-panel {
+  width: 92vw; max-width: 1100px; max-height: 86vh;
+  background: var(--bg1); border: 1px solid var(--border2);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; overflow: hidden;
+  animation: cmd-pop .18s cubic-bezier(.2,.7,.3,1) both;
+}
+.compare-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+}
+.compare-title { font-size: 16px; font-weight: 600; }
+.compare-body {
+  flex: 1; overflow-y: auto; padding: 0;
+}
+.compare-table { width: 100%; border-collapse: collapse; }
+.compare-table th, .compare-table td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  text-align: left; vertical-align: top; font-size: 13px;
+}
+.compare-table th {
+  font-weight: 600; color: var(--text); min-width: 130px;
+  background: var(--bg2); position: sticky; left: 0; z-index: 1;
+}
+.compare-table td { color: var(--text2); }
+.compare-table tr:last-child td { border-bottom: none; }
+.compare-table .col-title {
+  font-weight: 600; color: var(--accent2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 280px;
+}
+.compare-table .col-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--accent2); text-decoration: none; font-size: 11.5px;
+  margin-top: 2px;
+}
+.compare-table .col-link:hover { text-decoration: underline; }
+.compare-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.compare-float {
+  position: fixed; bottom: 24px; right: 24px; z-index: 8000;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 22px; padding: 10px 16px; font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: var(--font);
+  display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 8px 24px rgba(99,102,241,.4);
+  transition: all var(--t);
+  animation: cmd-pop .2s ease both;
+}
+.compare-float:hover { background: var(--accent2); transform: translateY(-2px); }
+
+/* ---- Compare checkbox on vacancy card ---- */
+.vc-compare-check {
+  position: absolute; top: 12px; right: 12px;
+  width: 18px; height: 18px; border-radius: 4px;
+  border: 1.5px solid var(--border3); background: var(--bg1);
+  cursor: pointer; appearance: none; -webkit-appearance: none;
+  transition: all var(--t);
+  display: flex; align-items: center; justify-content: center;
+}
+.vc-compare-check:hover { border-color: var(--accent); }
+.vc-compare-check:checked {
+  background: var(--accent); border-color: var(--accent);
+}
+.vc-compare-check:checked::after {
+  content: '✓'; color: #fff; font-size: 12px; font-weight: 700;
+  line-height: 1;
+}
+.vacancy-card { position: relative; }
+.vacancy-card.selected-for-compare {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* ---- Dashboard ---- */
+.dash-grid {
+  display: flex; flex-direction: column; gap: 16px;
+}
+.dash-kpi-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+.dash-card {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 16px 18px;
+}
+.dash-card-title {
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  margin-bottom: 14px;
+}
+.dash-chart { width: 100%; }
+.dash-chart svg { width: 100%; height: auto; display: block; }
+
+.dash-funnel-step {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 10px;
+}
+.dash-funnel-bar-wrap {
+  flex: 1; background: var(--bg2); border-radius: 8px;
+  overflow: hidden; height: 32px; position: relative;
+}
+.dash-funnel-bar {
+  height: 100%; border-radius: 8px;
+  transition: width .4s ease;
+}
+.dash-funnel-label {
+  font-size: 12px; color: var(--text2); width: 110px; flex-shrink: 0;
+}
+.dash-funnel-value {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  width: 50px; text-align: right; flex-shrink: 0;
+}
+
+.dash-bar-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+}
+.dash-bar-label {
+  font-size: 11.5px; color: var(--text2);
+  width: 130px; flex-shrink: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dash-bar-track {
+  flex: 1; background: var(--bg2); border-radius: 5px;
+  height: 22px; overflow: hidden;
+}
+.dash-bar-fill {
+  height: 100%; background: var(--accent); border-radius: 5px;
+  transition: width .4s ease;
+}
+.dash-bar-val {
+  font-size: 11.5px; color: var(--text); width: 36px; text-align: right;
+  flex-shrink: 0; font-variant-numeric: tabular-nums;
+}
+
+/* ---- Subscription chips ---- */
+.sub-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px; cursor: pointer;
+  font-size: 12.5px; color: var(--text2); transition: all var(--t);
+}
+.sub-chip:hover { background: var(--bg-hover); color: var(--text); border-color: var(--border2); }
+.sub-chip.active { border-color: rgba(99,102,241,.4); color: var(--accent2); background: var(--accent-bg); }
+.sub-chip-bell { font-size: 13px; color: var(--accent2); }
+.sub-chip-badge {
+  font-size: 11px; font-weight: 600; color: #fff;
+  background: var(--accent); padding: 0 7px; border-radius: 10px;
+  min-width: 18px; height: 16px; display: inline-flex;
+  align-items: center; justify-content: center;
+}
+.sub-chip-meta { font-size: 11px; color: var(--text3); }
+.sub-chip-remove {
+  margin-left: 4px; opacity: .6; color: var(--text3); cursor: pointer;
+  font-size: 14px; line-height: 1;
+}
+.sub-chip-remove:hover { opacity: 1; color: var(--danger); }
+
+/* ---- Nav bell badge ---- */
+.nav-item { position: relative; }
+.nav-badge {
+  position: absolute; top: 4px; left: 30px;
+  background: var(--accent); color: #fff;
+  font-size: 9.5px; font-weight: 700;
+  border-radius: 9px; padding: 1px 5px;
+  min-width: 14px; text-align: center;
+  pointer-events: none;
+}

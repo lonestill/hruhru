@@ -11,8 +11,9 @@ navItems.forEach(btn => {
         tabs.forEach(tab => tab.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById(`tab-${t}`).classList.add('active');
-        if (t === 'negotiations' && !_negoLoaded) loadNegotiations();
+if (t === 'negotiations' && !_negoLoaded) loadNegotiations();
         if (t === 'settings') loadSettings();
+        if (t === 'dashboard') renderDashboard();
     });
 });
 
@@ -197,10 +198,12 @@ async function fetchAndShowProfile() {
     await new Promise(r => setTimeout(r, 600));
     hideSplash();
 
-    if (authExists) {
-        loadSettings();
-        if (!authRes.profileName) fetchAndShowProfile();
-    }
+if (authExists) {
+            loadSettings();
+            if (!authRes.profileName) fetchAndShowProfile();
+        }
+
+        restoreLastSearch();
 
     // Auto-check for updates in background
     checkForUpdates(true);
@@ -550,11 +553,20 @@ window.addEventListener('resize', onSearchScroll, { passive: true });
 
 function buildVacancyCard(v, hlWords) {
     const card = document.createElement('div');
-    card.className = 'vacancy-card' + (v.responded ? ' responded' : '') + (isVacancyHidden(v.id) ? ' hidden' : '');
+    card.className = 'vacancy-card' + (v.responded ? ' responded' : '') + (isVacancyHidden(v.id) ? ' hidden' : '') + (_compareIds.has(String(v.id)) ? ' selected-for-compare' : '');
     card.dataset.vacancyId = v.id || '';
     card.dataset.vacancyUrl = v.url || '';
     card.dataset.vacancyTitle = v.title || '';
     card.dataset.vacancyEmployer = v.employer || '';
+
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.className = 'vc-compare-check';
+    check.title = 'Добавить к сравнению';
+    check.checked = _compareIds.has(String(v.id));
+    check.addEventListener('click', e => e.stopPropagation());
+    check.addEventListener('change', () => toggleCompare(v.id));
+    card.appendChild(check);
 
     const badges = [
         v.salary     && `<span class="badge badge-salary">${esc(v.salary)}</span>`,
@@ -696,10 +708,12 @@ async function doSearch(page) {
         return;
     }
 
-    const { cards, total, totalPages, currentPage } = res.data;
+const { cards, total, totalPages, currentPage } = res.data;
     _allCards = cards;
     _searchState.page = currentPage;
     _searchState.totalPages = totalPages;
+
+    cacheSearchResult(serverParams, cards, total, totalPages, currentPage);
 
     searchMeta.style.display = 'flex';
     searchTotal.textContent = `Найдено: ${total}`;
@@ -1678,6 +1692,7 @@ document.addEventListener('contextmenu', e => {
                 }
                 scheduleSearchRender();
             } },
+            { label: _compareIds.has(String(id)) ? 'Убрать из сравнения' : 'Добавить к сравнению', icon: '#icon-filter', action: () => toggleCompare(id) },
             { sep: true },
             { label: 'Скрыть вакансию', icon: '#icon-eye-off', danger: true, action: () => {
                 hideVacancy(id);
@@ -1710,3 +1725,530 @@ document.addEventListener('contextmenu', e => {
         return;
     }
 });
+
+// ===================== COMPARE VACANCIES ====================
+const _compareIds = new Set();
+const COMPARE_MAX = 4;
+const compareModal = document.getElementById('compareModal');
+const compareFloat = document.getElementById('compareFloat');
+const compareCount = document.getElementById('compareCount');
+const compareBody  = document.getElementById('compareBody');
+const compareClose = document.getElementById('compareClose');
+
+function toggleCompare(id) {
+    if (!id) return;
+    id = String(id);
+    if (_compareIds.has(id)) {
+        _compareIds.delete(id);
+    } else {
+        if (_compareIds.size >= COMPARE_MAX) {
+            alert('Максимум ' + COMPARE_MAX + ' вакансий для сравнения');
+            return;
+        }
+        _compareIds.add(id);
+    }
+    updateCompareFloat();
+    scheduleSearchRender();
+}
+
+function updateCompareFloat() {
+    const n = _compareIds.size;
+    if (n >= 2) {
+        compareFloat.style.display = 'inline-flex';
+        compareCount.textContent = n;
+    } else {
+        compareFloat.style.display = 'none';
+    }
+}
+
+function getCompareVacancies() {
+    const out = [];
+    _compareIds.forEach(id => {
+        const v = _allCards.find(c => String(c.id) === id);
+        if (v) out.push(v);
+    });
+    return out;
+}
+
+function openCompareModal() {
+    const vacancies = getCompareVacancies();
+    if (vacancies.length < 2) return;
+    const rows = [
+        { label: 'Название',    render: v => `<strong>${esc(v.title || '—')}</strong>` },
+        { label: 'Компания',    render: v => esc(v.employer || '—') },
+        { label: 'Зарплата',    render: v => v.salary ? `<span class="badge badge-salary">${esc(v.salary)}</span>` : '—' },
+        { label: 'Опыт',        render: v => v.experience ? `<span class="badge badge-exp">${esc(v.experience)}</span>` : '—' },
+        { label: 'Рейтинг',     render: v => v.rating ? `⭐ ${esc(v.rating)}` + (v.reviews ? ' · ' + esc(v.reviews) : '') : '—' },
+        { label: 'Метро',       render: v => v.metro ? 'м ' + esc(v.metro) : '—' },
+        { label: 'Адрес',       render: v => v.address ? '📍 ' + esc(v.address) : '—' },
+        { label: 'Требования',  render: v => esc(v.requirement || v.responsibility || '—') },
+        { label: 'Ссылка',      render: v => v.url ? `<a href="#" class="col-link" data-url="${esc(v.url)}">Открыть ↗</a>` : '—' },
+    ];
+    let html = '<table class="compare-table"><thead><tr><th></th>';
+    vacancies.forEach(v => {
+        html += `<th class="col-title">${esc(v.title || '—')}<div style="font-weight:400;color:var(--text2);font-size:11px;margin-top:2px">${esc(v.employer || '')}</div></th>`;
+    });
+    html += '</tr></thead><tbody>';
+    rows.forEach(row => {
+        html += `<tr><th>${esc(row.label)}</th>`;
+        vacancies.forEach(v => { html += '<td>' + row.render(v) + '</td>'; });
+        html += '</tr>';
+    });
+    html += '</tbody></table>';
+    compareBody.innerHTML = html;
+    compareBody.querySelectorAll('[data-url]').forEach(el => {
+        el.addEventListener('click', e => {
+            e.preventDefault();
+            if (el.dataset.url) window.api.openUrl(el.dataset.url);
+        });
+    });
+    compareModal.style.display = 'flex';
+}
+
+compareFloat.addEventListener('click', openCompareModal);
+compareClose.addEventListener('click', () => compareModal.style.display = 'none');
+compareModal.addEventListener('click', e => { if (e.target === compareModal) compareModal.style.display = 'none'; });
+
+// ===================== OFFLINE CACHE (IndexedDB) ====================
+const _dbPromise = (function() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open('hh-cache', 1);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains('vacancies')) db.createObjectStore('vacancies', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('searches'))  db.createObjectStore('searches',  { keyPath: 'key' });
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror   = () => reject(req.error);
+    });
+})();
+
+async function dbPutCards(cards) {
+    if (!cards || !cards.length) return;
+    const db = await _dbPromise;
+    const tx = db.transaction('vacancies', 'readwrite');
+    const store = tx.objectStore('vacancies');
+    cards.forEach(c => { if (c && c.id) store.put(c); });
+    return new Promise(res => { tx.oncomplete = res; tx.onerror = res; });
+}
+
+async function dbGetCard(id) {
+    const db = await _dbPromise;
+    return new Promise(res => {
+        const tx = db.transaction('vacancies', 'readonly');
+        const r = tx.objectStore('vacancies').get(id);
+        r.onsuccess = () => res(r.result);
+        r.onerror   = () => res(null);
+    });
+}
+
+async function dbPutSearch(key, data) {
+    const db = await _dbPromise;
+    const tx = db.transaction('searches', 'readwrite');
+    tx.objectStore('searches').put({ key, data, ts: Date.now() });
+    return new Promise(res => { tx.oncomplete = res; tx.onerror = res; });
+}
+
+async function dbGetSearch(key) {
+    const db = await _dbPromise;
+    return new Promise(res => {
+        const tx = db.transaction('searches', 'readonly');
+        const r = tx.objectStore('searches').get(key);
+        r.onsuccess = () => res(r.result);
+        r.onerror   = () => res(null);
+    });
+}
+
+async function dbGetLastSearch() {
+    const db = await _dbPromise;
+    return new Promise(res => {
+        const tx = db.transaction('searches', 'readonly');
+        const store = tx.objectStore('searches');
+        const r = store.openCursor(null, 'prev');
+        r.onsuccess = () => { const c = r.result; res(c ? c.value : null); };
+        r.onerror   = () => res(null);
+    });
+}
+
+async function cacheSearchResult(serverParams, cards, total, totalPages, currentPage) {
+    try {
+        await dbPutCards(cards);
+        const key = JSON.stringify(serverParams);
+        await dbPutSearch(key, { cards: cards.map(c => c.id), total, totalPages, currentPage, serverParams });
+    } catch (e) { /* ignore */ }
+}
+
+async function restoreLastSearch() {
+    try {
+        const rec = await dbGetLastSearch();
+        if (!rec) return false;
+        const data = rec.data;
+        const now = Date.now();
+        const ageH = (now - rec.ts) / 3600000;
+        _allCards = data.cards.slice();
+        _searchState.serverParams = data.serverParams;
+        _searchState.page = data.currentPage;
+        _searchState.totalPages = data.totalPages;
+        _searchState.clientFilters = collectClientFilters();
+        searchMeta.style.display = 'flex';
+        searchTotal.textContent = 'Из кэша: ' + data.total + (ageH < 1 ? ` (${Math.round(ageH*60)} мин назад)` : ` (${Math.round(ageH)} ч назад)`);
+        searchPageEl.textContent = data.currentPage + ' / ' + data.totalPages;
+        searchPrev.disabled = data.currentPage <= 1;
+        searchNext.disabled = data.currentPage >= data.totalPages;
+        renderVacancies();
+        return true;
+    } catch { return false; }
+}
+
+// ===================== DASHBOARD ====================
+const dashEmpty    = document.getElementById('dashEmpty');
+const dashGrid     = document.getElementById('dashGrid');
+const dashRefreshBtn = document.getElementById('dashRefreshBtn');
+
+function getNegoDate(n) {
+    return n.createdAt || n.date || n.updatedAt || n.created_at || null;
+}
+function getStatusKey(status) {
+    const s = String(status || '').toLowerCase();
+    if (s.includes('приглашен') || s.includes('invite')) return 'invite';
+    if (s.includes('отказан') || s.includes('reject')) return 'reject';
+    if (s.includes('просмотрен') || s.includes('viewed')) return 'viewed';
+    return 'new';
+}
+
+dashRefreshBtn.addEventListener('click', async () => {
+    if (!_negoItems.length) {
+        dashRefreshBtn.disabled = true;
+        _negoLoaded = false;
+        await loadNegotiations();
+        dashRefreshBtn.disabled = false;
+    }
+    renderDashboard();
+});
+
+function renderDashboard() {
+    const items = _negoItems;
+    if (!items.length) {
+        dashEmpty.style.display = 'flex';
+        dashGrid.style.display = 'none';
+        return;
+    }
+    dashEmpty.style.display = 'none';
+    dashGrid.style.display = 'flex';
+
+    const counts = { total: items.length, invite: 0, reject: 0, viewed: 0, new: 0 };
+    items.forEach(n => counts[getStatusKey(n.status)]++);
+    document.getElementById('dk-total').textContent  = counts.total;
+    document.getElementById('dk-invite').textContent = counts.invite;
+    document.getElementById('dk-reject').textContent = counts.reject;
+    document.getElementById('dk-viewed').textContent = counts.viewed;
+    document.getElementById('dk-new').textContent    = counts.new;
+    const rate = counts.total ? Math.round((counts.invite / counts.total) * 100) : 0;
+    document.getElementById('dk-rate').textContent   = rate + '%';
+
+    renderDashTimeline(items);
+    renderDashFunnel(counts);
+    renderDashStack(items);
+    renderDashTop(items);
+    renderDashDow(items);
+}
+
+function svgEl(tag, attrs) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+}
+
+const STATUS_COLORS = {
+    invite: '#34d399', reject: '#f87171', viewed: '#a1a1aa', new: '#6366f1'
+};
+
+function renderDashTimeline(items) {
+    const now = Date.now();
+    const days = 30;
+    const buckets = new Array(days).fill(0);
+    items.forEach(n => {
+        const d = getNegoDate(n);
+        if (!d) return;
+        const t = typeof d === 'number' ? d : Date.parse(d);
+        if (!t) return;
+        const diff = Math.floor((now - t) / (24 * 3600 * 1000));
+        if (diff >= 0 && diff < days) buckets[days - 1 - diff]++;
+    });
+    const max = Math.max(1, ...buckets);
+    const w = 600, h = 160, pad = 22;
+    const cw = w - pad * 2;
+    const ch = h - pad * 2;
+    const stepX = cw / Math.max(1, days - 1);
+    const points = buckets.map((v, i) => [pad + i * stepX, h - pad - (v / max) * ch]);
+    let path = points.length ? 'M' + points[0][0] + ',' + points[0][1] : '';
+    for (let i = 1; i < points.length; i++) {
+        const [x1, y1] = points[i - 1];
+        const [x2, y2] = points[i];
+        const mx = (x1 + x2) / 2;
+        path += ` C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
+    }
+    let area = path;
+    if (points.length) {
+        area = 'M' + points[0][0] + ',' + (h - pad) + ' L' + points[0][0] + ',' + points[0][1];
+        for (let i = 1; i < points.length; i++) {
+            const [x1, y1] = points[i - 1];
+            const [x2, y2] = points[i];
+            const mx = (x1 + x2) / 2;
+            area += ` C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
+        }
+        const last = points[points.length - 1];
+        area += ` L${last[0]},${h - pad} Z`;
+    }
+    const svg = svgEl('svg', { viewBox: `0 0 ${w} ${h}`, 'preserveAspectRatio': 'xMidYMid meet' });
+    // gridlines
+    for (let g = 1; g <= 4; g++) {
+        const y = pad + (ch / 4) * g;
+        svg.appendChild(svgEl('line', { x1: pad, x2: w - pad, y1: y, y2: y, stroke: 'rgba(255,255,255,.04)' }));
+    }
+    if (area) svg.appendChild(svgEl('path', { d: area, fill: 'rgba(99,102,241,.18)' }));
+    if (path) svg.appendChild(svgEl('path', { d: path, fill: 'none', stroke: '#6366f1', 'stroke-width': '2' }));
+    points.forEach((p, i) => {
+        if (buckets[i] === 0) return;
+        svg.appendChild(svgEl('circle', { cx: p[0], cy: p[1], r: 2.5, fill: '#818cf8' }));
+    });
+    document.getElementById('dashTimeline').innerHTML = '';
+    document.getElementById('dashTimeline').appendChild(svg);
+}
+
+function renderDashFunnel(counts) {
+    const steps = [
+        { label: 'Всего откликов', val: counts.total,    color: '#6366f1' },
+        { label: 'Просмотрены',    val: counts.viewed + counts.invite + counts.reject, color: '#818cf8' },
+        { label: 'Приглашения',   val: counts.invite,    color: '#34d399' },
+        { label: 'Отказы',        val: counts.reject,    color: '#f87171' },
+    ];
+    const max = Math.max(1, steps[0].val);
+    let html = '';
+    steps.forEach(s => {
+        const pct = (s.val / max) * 100;
+        html += `<div class="dash-funnel-step">
+            <div class="dash-funnel-label">${esc(s.label)}</div>
+            <div class="dash-funnel-bar-wrap"><div class="dash-funnel-bar" style="width:${pct}%;background:${s.color}"></div></div>
+            <div class="dash-funnel-value">${s.val}</div>
+        </div>`;
+    });
+    document.getElementById('dashFunnel').innerHTML = html;
+}
+
+function renderDashStack(items) {
+    const now = Date.now();
+    const days = 14;
+    const buckets = new Array(days).fill(null).map(() => ({ new: 0, viewed: 0, invite: 0, reject: 0 }));
+    items.forEach(n => {
+        const d = getNegoDate(n);
+        if (!d) return;
+        const t = typeof d === 'number' ? d : Date.parse(d);
+        if (!t) return;
+        const diff = Math.floor((now - t) / (24 * 3600 * 1000));
+        if (diff >= 0 && diff < days) {
+            const k = getStatusKey(n.status);
+            buckets[days - 1 - diff][k]++;
+        }
+    });
+    const maxTotal = Math.max(1, ...buckets.map(b => b.new + b.viewed + b.invite + b.reject));
+    const w = 600, h = 160, pad = 22, cw = w - pad * 2, ch = h - pad * 2;
+    const bw = cw / days * 0.7;
+    const gap = cw / days * 0.3;
+    const svg = svgEl('svg', { viewBox: `0 0 ${w} ${h}`, 'preserveAspectRatio': 'xMidYMid meet' });
+    buckets.forEach((b, i) => {
+        const x = pad + i * (cw / days) + (gap / 2);
+        let y = h - pad;
+        ['new', 'viewed', 'invite', 'reject'].forEach(k => {
+            const v = b[k] / maxTotal * ch;
+            svg.appendChild(svgEl('rect', {
+                x, y: y - v, width: bw, height: v,
+                fill: STATUS_COLORS[k], rx: 1
+            }));
+            y -= v;
+        });
+    });
+    svg.appendChild(svgEl('line', { x1: pad, x2: w - pad, y1: h - pad, y2: h - pad, stroke: 'rgba(255,255,255,.09)' }));
+    document.getElementById('dashStack').innerHTML = '';
+    document.getElementById('dashStack').appendChild(svg);
+}
+
+function renderDashTop(items) {
+    const m = new Map();
+    items.forEach(n => {
+        const e = n.employerName || n.employer || '—';
+        m.set(e, (m.get(e) || 0) + 1);
+    });
+    const sorted = [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const max = Math.max(1, ...sorted.map(e => e[1]));
+    let html = '';
+    sorted.forEach(([name, n]) => {
+        const pct = (n / max) * 100;
+        html += `<div class="dash-bar-row">
+            <div class="dash-bar-label" title="${esc(name)}">${esc(name)}</div>
+            <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${pct}%"></div></div>
+            <div class="dash-bar-val">${n}</div>
+        </div>`;
+    });
+    document.getElementById('dashTop').innerHTML = html;
+}
+
+function renderDashDow(items) {
+    const cnt = new Array(7).fill(0);
+    items.forEach(n => {
+        const d = getNegoDate(n);
+        if (!d) return;
+        const t = typeof d === 'number' ? d : Date.parse(d);
+        if (!t) return;
+        const dt = new Date(t);
+        const dow = dt.getDay();
+        cnt[(dow + 6) % 7]++;
+    });
+    const labels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    const max = Math.max(1, ...cnt);
+    const w = 600, h = 160, pad = 22, cw = w - pad * 2, ch = h - pad * 2;
+    const bw = cw / 7 * 0.62;
+    const svg = svgEl('svg', { viewBox: `0 0 ${w} ${h}`, 'preserveAspectRatio': 'xMidYMid meet' });
+    for (let g = 1; g <= 4; g++) {
+        const y = pad + (ch / 4) * g;
+        svg.appendChild(svgEl('line', { x1: pad, x2: w - pad, y1: y, y2: y, stroke: 'rgba(255,255,255,.04)' }));
+    }
+    cnt.forEach((v, i) => {
+        const bh = (v / max) * ch;
+        const x = pad + i * (cw / 7) + ((cw / 7) - bw) / 2;
+        const fill = (i === 5 || i === 6) ? '#a1a1aa' : '#6366f1';
+        svg.appendChild(svgEl('rect', { x, y: h - pad - bh, width: bw, height: bh, rx: 3, fill }));
+        svg.appendChild(svgEl('text', { x: x + bw / 2, y: h - pad - bh - 6, fill: 'rgba(255,255,255,.7)', 'text-anchor': 'middle', 'font-size': 10, 'font-family': 'sans-serif' })).textContent = v;
+        svg.appendChild(svgEl('text', { x: x + bw / 2, y: h - 4, fill: 'rgba(255,255,255,.5)', 'text-anchor': 'middle', 'font-size': 11, 'font-family': 'sans-serif' })).textContent = labels[i];
+    });
+    document.getElementById('dowChart').innerHTML = '';
+    document.getElementById('dowChart').appendChild(svg);
+}
+
+// ===================== SUBSCRIPTIONS ====================
+const SUB_KEY = 'hh_subscriptions';
+
+function loadSubscriptions() {
+    try { return JSON.parse(localStorage.getItem(SUB_KEY) || '[]'); }
+    catch { return []; }
+}
+function saveSubscriptions(list) {
+    localStorage.setItem(SUB_KEY, JSON.stringify(list));
+}
+
+const subListEl = document.createElement('div');
+subListEl.className = 'saved-searches';
+subListEl.id = 'subList';
+document.getElementById('savedSearches').after(subListEl);
+
+const subBtn = document.createElement('button');
+subBtn.className = 'btn btn-ghost btn-sm';
+subBtn.id = 'createSubBtn';
+subBtn.style.marginLeft = '10px';
+subBtn.innerHTML = '<svg class="icon icon-sm" aria-hidden="true"><use href="#icon-bell"/></svg><span class="btn-text">Создать подписку</span>';
+document.getElementById('saveSearchBtn').after(subBtn);
+
+const searchNavItem = document.querySelector('.nav-item[data-tab="search"]');
+const navBadge = document.createElement('span');
+navBadge.className = 'nav-badge';
+navBadge.style.display = 'none';
+searchNavItem.appendChild(navBadge);
+
+function renderSubscriptions() {
+    const list = loadSubscriptions();
+    if (!list.length) { subListEl.style.display = 'none'; navBadge.style.display = 'none'; return; }
+    subListEl.style.display = 'flex';
+    subListEl.innerHTML = '';
+    let totalUnseen = 0;
+    list.forEach((s, i) => {
+        totalUnseen += (s.unseenCount || 0);
+        const chip = document.createElement('div');
+        chip.className = 'sub-chip';
+        let html = '<span class="sub-chip-bell">🔔</span>';
+        html += `<span>${esc(s.name)}</span>`;
+        html += `<span class="sub-chip-meta">${s.intervalMin}мин</span>`;
+        if (s.unseenCount > 0) {
+            html += `<span class="sub-chip-badge">${s.unseenCount}</span>`;
+        }
+        html += '<span class="sub-chip-remove" data-idx="' + i + '" title="Удалить">×</span>';
+        chip.innerHTML = html;
+        chip.title = `Каждые ${s.intervalMin} мин` + (s.lastRunAt ? ` · последний: ${new Date(s.lastRunAt).toLocaleTimeString('ru-RU')}` : '');
+        chip.addEventListener('click', e => {
+            if (e.target.classList.contains('sub-chip-remove')) {
+                const idx = parseInt(e.target.dataset.idx);
+                const updated = loadSubscriptions().filter((_, j) => j !== idx);
+                saveSubscriptions(updated);
+                renderSubscriptions();
+                return;
+            }
+            s.unseenCount = 0;
+            saveSubscriptions(loadSubscriptions().map((x, j) => j === i ? s : x));
+            restoreSavedSearch(s);
+            renderSubscriptions();
+            doSearch(1).then(() => {});
+        });
+        subListEl.appendChild(chip);
+    });
+    navBadge.textContent = totalUnseen > 99 ? '99+' : totalUnseen;
+    navBadge.style.display = totalUnseen > 0 ? '' : 'none';
+}
+
+subBtn.addEventListener('click', () => {
+    const serverParams = collectServerParams();
+    if (!serverParams.text && !serverParams.area.length) {
+        alert('Введите запрос или выберите регион');
+        return;
+    }
+    const name = prompt('Название подписки:', serverParams.text || 'Поиск');
+    if (!name) return;
+    const iv = parseInt(prompt('Интервал проверки (минут, минимум 5):', '30') || '0');
+    if (!iv || iv < 5) { alert('Интервал должен быть не менее 5 минут'); return; }
+    const list = loadSubscriptions();
+    list.push({
+        id: Date.now().toString(36),
+        name, intervalMin: iv,
+        serverParams,
+        clientFilters: collectClientFilters(),
+        lastRunAt: 0,
+        seenIds: [],
+        unseenCount: 0
+    });
+    saveSubscriptions(list);
+    renderSubscriptions();
+});
+
+async function runSubscriptionOnce(sub, idx) {
+    try {
+        const res = await window.api.vacanciesSearch({ ...sub.serverParams, page: 1 });
+        if (!res.ok || !res.data || !res.data.cards) return;
+        const seen = new Set(sub.seenIds || []);
+        const newCards = res.data.cards.filter(c => c.id && !seen.has(String(c.id)));
+        sub.lastRunAt = Date.now();
+        if (newCards.length) {
+            sub.unseenCount = (sub.unseenCount || 0) + newCards.length;
+            sub.seenIds = [...seen, ...newCards.map(c => String(c.id))].slice(-500);
+            window.api.appNotify({
+                title: '🔔 Новые вакансии: ' + sub.name,
+                body: `Найдено ${newCards.length} новых вакансий. Кликни, чтобы посмотреть.`,
+                url: 'https://hh.ru/search/vacancy?text=' + encodeURIComponent(sub.serverParams.text || '')
+            });
+        }
+        const list = loadSubscriptions();
+        list[idx] = sub;
+        saveSubscriptions(list);
+    } catch (e) { /* ignore */ }
+}
+
+function tickSubscriptions() {
+    const list = loadSubscriptions();
+    const now = Date.now();
+    list.forEach((sub, idx) => {
+        if (!sub.lastRunAt || (now - sub.lastRunAt) >= sub.intervalMin * 60 * 1000) {
+            runSubscriptionOnce(sub, idx);
+        }
+    });
+    renderSubscriptions();
+}
+
+setInterval(tickSubscriptions, 60 * 1000);
+renderSubscriptions();

@@ -35,6 +35,8 @@
 <symbol id="icon-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></symbol>
 <symbol id="icon-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></symbol>
 <symbol id="icon-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
+<symbol id="icon-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="21" x2="21" y2="21"/><polyline points="3 17 9 11 13 15 21 6"/><polyline points="14 6 21 6 21 13"/></symbol>
+<symbol id="icon-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
 </svg>
 <div id="app">
 
@@ -112,6 +114,25 @@
   </div>
 </div>
 
+<!-- ===== COMPARE MODAL ===== -->
+<div id="compareModal" class="cmd-backdrop" style="display:none">
+  <div class="compare-panel">
+    <div class="compare-header">
+      <h2 class="compare-title">Сравнение вакансий</h2>
+      <button class="btn-icon-mini" id="compareClose" title="Закрыть">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-x"/></svg>
+      </button>
+    </div>
+    <div id="compareBody" class="compare-body"></div>
+  </div>
+</div>
+
+<!-- ===== FLOATING COMPARE BUTTON ===== -->
+<button id="compareFloat" class="compare-float" style="display:none">
+  <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-filter"/></svg>
+  <span>Сравнить <span id="compareCount">0</span></span>
+</button>
+
 <!-- ===== OTP MODAL ===== -->
 <div id="otpModal" class="modal-backdrop" style="display:none">
   <div class="modal">
@@ -135,6 +156,9 @@
   <nav class="nav">
     <button class="nav-item active" data-tab="search">
       <svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><span>Поиск</span>
+    </button>
+    <button class="nav-item" data-tab="dashboard">
+      <svg class="icon" aria-hidden="true"><use href="#icon-chart"/></svg><span>Дашборд</span>
     </button>
     <button class="nav-item" data-tab="autoapply">
       <svg class="icon" aria-hidden="true"><use href="#icon-bolt"/></svg><span>Автоотклик</span>
@@ -398,6 +422,51 @@
   <div id="searchEmpty" class="empty-state">
     <div class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#icon-search"/></svg></div>
     <div>Введите запрос и нажмите «Найти»</div>
+  </div>
+</section>
+
+<!-- ===== DASHBOARD ===== -->
+<section id="tab-dashboard" class="tab">
+  <div class="tab-header">
+    <div class="tab-header-left"><h1>Дашборд</h1></div>
+    <button class="btn btn-ghost btn-sm" id="dashRefreshBtn">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+      <span class="btn-text">Загрузить данные</span>
+    </button>
+  </div>
+  <div id="dashEmpty" class="empty-state">
+    <div class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="#icon-chart"/></svg></div>
+    <div>Нажмите «Загрузить данные», чтобы увидеть статистику по откликам</div>
+  </div>
+  <div id="dashGrid" class="dash-grid" style="display:none">
+    <div class="dash-kpi-row">
+      <div class="stat-card"><div class="stat-val" id="dk-total">0</div><div class="stat-label">Всего откликов</div></div>
+      <div class="stat-card"><div class="stat-val ns-invite" id="dk-invite">0</div><div class="stat-label">Приглашения</div></div>
+      <div class="stat-card"><div class="stat-val ns-reject" id="dk-reject">0</div><div class="stat-label">Отказы</div></div>
+      <div class="stat-card"><div class="stat-val ns-viewed" id="dk-viewed">0</div><div class="stat-label">Просмотрены</div></div>
+      <div class="stat-card"><div class="stat-val ns-new" id="dk-new">0</div><div class="stat-label">Новые</div></div>
+      <div class="stat-card"><div class="stat-val" id="dk-rate">0%</div><div class="stat-label">Конверсия (отклик → приглашение)</div></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-title">Отклики по дням (30 дней)</div>
+      <div id="dashTimeline" class="dash-chart"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-title">Воронка откликов</div>
+      <div id="dashFunnel" class="dash-chart"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-title">Статусы по дням (стэк)</div>
+      <div id="dashStack" class="dash-chart"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-title">Топ-10 компаний по откликам</div>
+      <div id="dashTop" class="dash-chart"></div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-title">Средняя активность по дням недели</div>
+      <div id="dowChart" class="dash-chart"></div>
+    </div>
   </div>
 </section>
 

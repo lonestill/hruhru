@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('api', {
     appOpenDataPath:  ()     => ipcRenderer.invoke('app:openDataPath'),
     appGetAutoLaunch: ()     => ipcRenderer.invoke('app:getAutoLaunch'),
     appCheckUpdates:  ()     => ipcRenderer.invoke('app:checkUpdates'),
+    appNotify:        (p)    => ipcRenderer.invoke('app:notify', p),
 
     // Shell
     openUrl:          (url)  => ipcRenderer.invoke('shell:openUrl', url),
