@@ -9,10 +9,10 @@
     "cli:auth": "node init.js",
     "cli:parse": "node parse.js",
     "check": "node --check init.js && node --check parse.js && node --check src/main.js && node --check src/preload.js && node --check src/renderer/app.js && node --check src/lib/auth.js && node --check src/lib/crawler.js && node --check src/lib/vacancies.js && node --check src/lib/negotiations.js && node --check src/lib/profile.js && node --check src/lib/install-browser.js",
-    "dist": "electron-builder",
-    "dist:win": "electron-builder --win --x64",
-    "dist:mac": "electron-builder --mac --arm64 --x64",
-    "dist:linux": "electron-builder --linux --x64"
+    "dist": "electron-builder --publish never",
+    "dist:win": "electron-builder --win --x64 --publish never",
+    "dist:mac": "electron-builder --mac --arm64 --x64 --publish never",
+    "dist:linux": "electron-builder --linux --x64 --publish never"
   },
   "keywords": [
     "hh.ru",
@@ -70,7 +70,6 @@
       "LICENSE"
     ],
     "asar": true,
-    "publish": "never",
     "asarUnpack": [
       "node_modules/playwright/**",
       "node_modules/playwright-core/**"
