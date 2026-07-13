@@ -87,24 +87,99 @@ async function refreshAuthStatus() {
     return authExists;
 }
 
+// Fetch profile from hh.ru (launches headless browser if no cache).
+// Updates sidebar status, settings profile card. Returns profile object.
+async function fetchAndShowProfile() {
+    const profile = await window.api.authFetchProfile();
+    if (!profile) return null;
+    const name = profile.name || '';
+    const sub  = profile.subtitle || '';
+    const avatar = profile.avatarUrl || '';
+
+    // Sidebar
+    if (name) { authLabel.textContent = name; authLabel.title = name; }
+
+    // Settings profile card
+    const nameEl = document.getElementById('setProfileName');
+    const subEl  = document.getElementById('setProfileSub');
+    const avEl   = document.getElementById('setProfileAvatar');
+    if (nameEl) nameEl.textContent = name || 'Сессия активна';
+    if (subEl)  subEl.textContent  = sub;
+    if (avEl && avatar) {
+        avEl.innerHTML = `<img src="${esc(avatar)}" alt="">`;
+    }
+
+    return profile;
+}
+
 // On startup: check auth, then fade out splash to reveal the right screen.
 (async () => {
-    // Small minimum display so the splash doesn't just flicker.
-    const [authExists] = await Promise.all([
-        refreshAuthStatus(),
-        new Promise(r => setTimeout(r, 600))
-    ]);
+    const authRes = await window.api.authStatus();
+    const authExists = authRes.authExists;
+
+    // Sidebar
+    authDot.className   = 'status-dot ' + (authExists ? 'ok' : 'error');
+    authLabel.textContent = authExists ? (authRes.profileName || 'Сессия активна') : 'Нет сессии';
+    authLabel.title = authExists && authRes.profileName ? authRes.profileName : '';
+    logoutBtn.style.display = authExists ? '' : 'none';
+    authGate.style.display = authExists ? 'none' : 'flex';
+
+    // If cached profile has subtitle/avatar, populate settings card immediately
+    if (authExists && authRes.profile) {
+        const p = authRes.profile;
+        const nameEl = document.getElementById('setProfileName');
+        const subEl  = document.getElementById('setProfileSub');
+        const avEl   = document.getElementById('setProfileAvatar');
+        if (nameEl && p.name) nameEl.textContent = p.name;
+        if (subEl && p.subtitle) subEl.textContent = p.subtitle;
+        if (avEl && p.avatarUrl) avEl.innerHTML = `<img src="${esc(p.avatarUrl)}" alt="">`;
+    }
+
+    await new Promise(r => setTimeout(r, 600));
     hideSplash();
+
     if (authExists) {
         loadSettings();
-        // Fetch profile name in background (may launch headless browser if no cache)
-        if (!authLabel.textContent || authLabel.textContent === 'Сессия активна') {
-            window.api.authFetchProfile().then(name => {
-                if (name) { authLabel.textContent = name; authLabel.title = name; }
-            });
-        }
+        if (!authRes.profileName) fetchAndShowProfile();
     }
+
+    // Auto-check for updates in background
+    checkForUpdates(true);
 })();
+
+// ---- Update banner ----
+const updateBanner      = document.getElementById('updateBanner');
+const updateBannerVer   = document.getElementById('updateBannerVersion');
+const updateBannerLink  = document.getElementById('updateBannerLink');
+const updateBannerClose = document.getElementById('updateBannerClose');
+
+let _updateUrl = '';
+
+async function checkForUpdates(silent = false) {
+    const res = await window.api.appCheckUpdates();
+    if (!res.ok) {
+        if (!silent && setUpdateStatus) setUpdateStatus.textContent = `Ошибка: ${res.error}`;
+        return;
+    }
+    if (!silent && setUpdateStatus) {
+        setUpdateStatus.textContent = `Актуальная версия: ${res.latest || res.current}`;
+    }
+    if (res.hasUpdate) {
+        _updateUrl = res.url;
+        updateBannerVer.textContent = res.latest;
+        updateBannerLink.href = res.url;
+        updateBanner.style.display = '';
+    }
+}
+
+updateBannerLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (_updateUrl) window.api.openUrl(_updateUrl);
+});
+
+updateBannerClose.addEventListener('click', () => {
+    updateBanner.style.display = 'none';
+});
 
 logoutBtn.addEventListener('click', async () => {
     if (!confirm('Выйти из аккаунта hh.ru? Сохранённая сессия будет удалена.')) return;
@@ -186,11 +261,7 @@ window.api.onAuthDone(({ success, message }) => {
     appendLog('authLog', success ? `✅ ${message}` : `❌ ${message}`);
     resetAuth();
     refreshAuthStatus().then(authExists => {
-        if (authExists && (!authLabel.textContent || authLabel.textContent === 'Сессия активна')) {
-            window.api.authFetchProfile().then(name => {
-                if (name) { authLabel.textContent = name; authLabel.title = name; }
-            });
-        }
+        if (authExists) fetchAndShowProfile();
     });
 });
 
@@ -966,10 +1037,55 @@ function getStatusClass(status) {
 const loadResumesBtn  = document.getElementById('loadResumesBtn');
 const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const settingsSaved   = document.getElementById('settingsSaved');
+const setAddTemplate  = document.getElementById('setAddTemplate');
+const setTemplatesEl  = document.getElementById('setTemplates');
+const setLogoutBtn    = document.getElementById('setLogoutBtn');
+const setAutoLaunch   = document.getElementById('setAutoLaunch');
+const setTray         = document.getElementById('setTray');
+const setCheckUpdates = document.getElementById('setCheckUpdates');
+const setUpdateStatus = document.getElementById('setUpdateStatus');
+const setClearCache   = document.getElementById('setClearCache');
+const setDataPath     = document.getElementById('setDataPath');
+const setOpenDataPath = document.getElementById('setOpenDataPath');
+const setVersion      = document.getElementById('setVersion');
+const setGithubLink   = document.getElementById('setGithubLink');
 
 let selectedResumeIndex = 0;
 let resumesData = [];
 
+// --- Templates ---
+function getSettingsTemplates() {
+    return Array.from(setTemplatesEl.querySelectorAll('.aa-template textarea'))
+        .map(t => t.value)
+        .filter(v => v.trim());
+}
+
+function addSettingsTemplateRow(value = '') {
+    const row = document.createElement('div');
+    row.className = 'aa-template';
+    const idx = setTemplatesEl.children.length + 1;
+    row.innerHTML = `
+      <div class="aa-template-head">
+        <span class="tpl-num">Шаблон ${idx}</span>
+        <button class="btn-icon-mini" title="Удалить">
+          <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-trash"/></svg>
+        </button>
+      </div>
+      <textarea placeholder="Добрый день! Меня заинтересовала вакансия {title} в {employer}..."></textarea>
+    `;
+    row.querySelector('textarea').value = value;
+    row.querySelector('.btn-icon-mini').addEventListener('click', () => {
+        row.remove();
+        setTemplatesEl.querySelectorAll('.aa-template').forEach((r, i) => {
+            r.querySelector('.tpl-num').textContent = `Шаблон ${i + 1}`;
+        });
+    });
+    setTemplatesEl.appendChild(row);
+}
+
+setAddTemplate.addEventListener('click', () => addSettingsTemplateRow());
+
+// --- Resumes ---
 loadResumesBtn.addEventListener('click', async () => {
     loadResumesBtn.disabled = true;
     loadResumesBtn.classList.add('loading');
@@ -1003,23 +1119,106 @@ function renderResumes() {
     });
 }
 
+// --- Auth status in settings ---
+async function refreshSettingsAuth() {
+    const { authExists, profileName } = await window.api.authStatus();
+    setLogoutBtn.style.display = authExists ? '' : 'none';
+    const nameEl = document.getElementById('setProfileName');
+    const subEl  = document.getElementById('setProfileSub');
+    if (!authExists) {
+        if (nameEl) nameEl.textContent = 'Нет сессии';
+        if (subEl)  subEl.textContent  = 'Войдите в аккаунт hh.ru';
+    } else if (profileName) {
+        if (nameEl) nameEl.textContent = profileName;
+    } else {
+        if (nameEl) nameEl.textContent = 'Сессия активна';
+        if (subEl)  subEl.textContent  = 'Загружаем профиль…';
+        fetchAndShowProfile();
+    }
+}
+
+setLogoutBtn.addEventListener('click', async () => {
+    if (!confirm('Выйти из аккаунта hh.ru? Сохранённая сессия будет удалена.')) return;
+    await window.api.authLogout();
+    await refreshSettingsAuth();
+});
+
+// --- App info ---
+async function loadAppInfo() {
+    const version = await window.api.appVersion();
+    setVersion.textContent = version || 'dev';
+    const dp = await window.api.appDataPath();
+    setDataPath.textContent = dp;
+    setGithubLink.href = 'https://github.com/lonestill/hruhru/releases';
+    const autoLaunch = await window.api.appGetAutoLaunch();
+    setAutoLaunch.checked = autoLaunch;
+}
+
+setOpenDataPath.addEventListener('click', () => window.api.appOpenDataPath());
+
+setClearCache.addEventListener('click', async () => {
+    if (!confirm('Очистить кэш профиля? Имя будет пересобрано при следующем запуске.')) return;
+    await window.api.appClearCache();
+    setClearCache.querySelector('.btn-text').textContent = 'Очищено';
+    setTimeout(() => setClearCache.querySelector('.btn-text').textContent = 'Очистить', 2000);
+});
+
+setCheckUpdates.addEventListener('click', async () => {
+    setCheckUpdates.disabled = true;
+    setCheckUpdates.classList.add('loading');
+    setUpdateStatus.textContent = 'Проверяем…';
+    const res = await window.api.appCheckUpdates();
+    setCheckUpdates.disabled = false;
+    setCheckUpdates.classList.remove('loading');
+    if (!res.ok) {
+        setUpdateStatus.textContent = `Ошибка: ${res.error}`;
+        return;
+    }
+    if (res.hasUpdate) {
+        setUpdateStatus.innerHTML = `Доступна новая версия <a href="#" style="color:var(--accent2)" id="updateLink">${res.latest}</a>`;
+        document.getElementById('updateLink').addEventListener('click', (e) => {
+            e.preventDefault();
+            window.api.openUrl(res.url);
+        });
+    } else {
+        setUpdateStatus.textContent = `Актуальная версия: ${res.latest || res.current}`;
+    }
+});
+
+// --- Load/save ---
 async function loadSettings() {
     const res = await window.api.settingsLoad();
     if (!res.ok) return;
     const s = res.data || {};
     if (s.resumeIndex !== undefined) selectedResumeIndex = s.resumeIndex;
-    if (s.delayMin)   document.getElementById('cfg-delay-min').value = s.delayMin;
-    if (s.delayMax)   document.getElementById('cfg-delay-max').value = s.delayMax;
-    if (s.blacklist)  document.getElementById('cfg-blacklist').value = (s.blacklist || []).join('\n');
+    if (s.delayMin) document.getElementById('cfg-delay-min').value = s.delayMin;
+    if (s.delayMax) document.getElementById('cfg-delay-max').value = s.delayMax;
+    if (s.blacklist) document.getElementById('cfg-blacklist').value = (s.blacklist || []).join('\n');
+    if (s.whitelist) document.getElementById('cfg-whitelist').value = (s.whitelist || []).join('\n');
+    setTray.checked = !!s.closeToTray;
+    setAutoLaunch.checked = !!s.autoLaunch;
+    // Templates
+    setTemplatesEl.innerHTML = '';
+    const tpls = s.coverLetters || [];
+    if (tpls.length) tpls.forEach(t => addSettingsTemplateRow(t));
+    else addSettingsTemplateRow('Добрый день! Меня заинтересовала вакансия «{title}» в компании {employer}. Буду рад обсудить детали.');
+    renderResumes();
+    refreshSettingsAuth();
+    loadAppInfo();
 }
 
 saveSettingsBtn.addEventListener('click', async () => {
     const blacklistRaw = document.getElementById('cfg-blacklist').value.trim();
+    const whitelistRaw = document.getElementById('cfg-whitelist').value.trim();
     const data = {
-        resumeIndex: selectedResumeIndex,
-        delayMin:    parseInt(document.getElementById('cfg-delay-min').value) || 8,
-        delayMax:    parseInt(document.getElementById('cfg-delay-max').value) || 15,
-        blacklist:   blacklistRaw ? blacklistRaw.split('\n').map(s => s.trim()).filter(Boolean) : []
+        resumeIndex:   selectedResumeIndex,
+        delayMin:      parseInt(document.getElementById('cfg-delay-min').value) || 8,
+        delayMax:      parseInt(document.getElementById('cfg-delay-max').value) || 15,
+        blacklist:     blacklistRaw ? blacklistRaw.split('\n').map(s => s.trim()).filter(Boolean) : [],
+        whitelist:     whitelistRaw ? whitelistRaw.split('\n').map(s => s.trim()).filter(Boolean) : [],
+        coverLetters:  getSettingsTemplates(),
+        closeToTray:   setTray.checked,
+        autoLaunch:    setAutoLaunch.checked,
     };
     await window.api.settingsSave(data);
     settingsSaved.style.display = '';

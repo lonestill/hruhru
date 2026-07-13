@@ -128,9 +128,6 @@
     <button class="nav-item" data-tab="settings">
       <svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg><span>Настройки</span>
     </button>
-    <button class="nav-item" data-tab="crawler">
-      <svg class="icon" aria-hidden="true"><use href="#icon-spider"/></svg><span>Краулер</span>
-    </button>
   </nav>
   <div class="sidebar-footer">
     <div class="status-pill">
@@ -145,6 +142,18 @@
 
 <!-- Content -->
 <main class="content">
+
+<!-- Update banner -->
+<div id="updateBanner" class="update-banner" style="display:none">
+  <div class="update-banner-inner">
+    <svg class="icon icon-sm" aria-hidden="true" style="color:var(--accent2)"><use href="#icon-target"/></svg>
+    <span>Доступна новая версия: <strong id="updateBannerVersion"></strong></span>
+    <a href="#" class="update-banner-link" id="updateBannerLink">Скачать</a>
+    <button class="btn-icon-mini" id="updateBannerClose" title="Скрыть">
+      <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-x"/></svg>
+    </button>
+  </div>
+</div>
 
 <!-- ===== SEARCH ===== -->
 <section id="tab-search" class="tab active">
@@ -610,29 +619,136 @@
   <div class="tab-header">
     <div class="tab-header-left"><h1>Настройки</h1></div>
   </div>
-  <div class="two-col">
-    <div class="card">
-      <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-file"/></svg> Резюме для откликов</div>
-      <div id="resumesList" class="resumes-list"><div class="text-muted">Нажмите «Загрузить» для получения списка</div></div>
-      <button class="btn btn-ghost btn-sm" id="loadResumesBtn" style="margin-top:12px">
-        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
-        <span class="btn-text">Загрузить резюме</span>
+
+  <!-- Аккаунт -->
+  <div class="card">
+    <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-key"/></svg> Аккаунт hh.ru</div>
+    <div id="setProfileCard" class="profile-card">
+      <div class="profile-card-avatar" id="setProfileAvatar">
+        <svg class="icon icon-lg" aria-hidden="true"><use href="#icon-key"/></svg>
+      </div>
+      <div class="profile-card-info">
+        <div class="profile-card-name" id="setProfileName">Загрузка…</div>
+        <div class="profile-card-sub" id="setProfileSub"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="setLogoutBtn" style="display:none">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-logout"/></svg>
+        <span class="btn-text">Выйти</span>
       </button>
     </div>
-    <div class="card">
-      <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg> Задержки между откликами</div>
-      <div class="form-group"><label>Минимальная (секунды)</label><input id="cfg-delay-min" type="number" value="8" min="3" max="60"></div>
-      <div class="form-group" style="margin-top:10px"><label>Максимальная (секунды)</label><input id="cfg-delay-max" type="number" value="15" min="5" max="120"></div>
+  </div>
+
+  <!-- Резюме -->
+  <div class="card">
+    <div class="card-title">
+      <svg class="icon" aria-hidden="true"><use href="#icon-file"/></svg> Резюме для откликов
+      <button class="btn btn-ghost btn-sm" id="loadResumesBtn" style="margin-left:auto">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+        <span class="btn-text">Загрузить</span>
+      </button>
+    </div>
+    <div id="resumesList" class="resumes-list"><div class="text-muted">Нажмите «Загрузить» для получения списка</div></div>
+  </div>
+
+  <!-- Шаблоны писем по умолчанию -->
+  <div class="card">
+    <div class="card-title">
+      <svg class="icon" aria-hidden="true"><use href="#icon-mail"/></svg> Шаблоны писем по умолчанию
+      <button class="btn btn-ghost btn-sm" id="setAddTemplate" style="margin-left:auto">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-save"/></svg>
+        <span class="btn-text">Добавить</span>
+      </button>
+    </div>
+    <div id="setTemplates" class="aa-templates"></div>
+    <div class="form-hint" style="margin-top:10px">Переменные: <code>{title}</code> <code>{employer}</code> <code>{salary}</code>. Подставляются автоматически при отклике.</div>
+  </div>
+
+  <!-- Поведение автоотклика -->
+  <div class="card">
+    <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg> Поведение автоотклика</div>
+    <div class="two-col" style="gap:20px;flex-wrap:wrap">
+      <div class="form-group"><label>Мин. задержка (сек)</label><input id="cfg-delay-min" type="number" value="8" min="3" max="60"></div>
+      <div class="form-group"><label>Макс. задержка (сек)</label><input id="cfg-delay-max" type="number" value="15" min="5" max="120"></div>
+    </div>
+    <div class="form-group" style="margin-top:14px">
+      <label>Чёрный список компаний (каждое с новой строки)</label>
+      <textarea id="cfg-blacklist" rows="4" placeholder="ООО Рога и Копыта&#10;МММ"></textarea>
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label>White-list компаний — отклики только в эти (каждое с новой строки, пусто = все)</label>
+      <textarea id="cfg-whitelist" rows="4" placeholder="Яндекс&#10;Сбер"></textarea>
     </div>
   </div>
+
+  <!-- Приложение -->
   <div class="card">
-    <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-ban"/></svg> Чёрный список компаний</div>
-    <div class="form-group"><label>Названия компаний (каждое с новой строки)</label><textarea id="cfg-blacklist" rows="5" placeholder="ООО Рога и Копыта&#10;МММ&#10;..."></textarea></div>
+    <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-settings"/></svg> Приложение</div>
+
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Запускать при старте ОС</div>
+        <div class="settings-row-desc">Приложение стартует вместе с Windows</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="setAutoLaunch"><span class="switch-slider"></span></label>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Сворачивать в трей вместо закрытия</div>
+        <div class="settings-row-desc">Кнопка закрытия прячет окно в системный трей</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="setTray"><span class="switch-slider"></span></label>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Проверка обновлений</div>
+        <div class="settings-row-desc" id="setUpdateStatus">Последняя проверка: —</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="setCheckUpdates">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-refresh"/></svg>
+        <span class="btn-text">Проверить</span>
+      </button>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Очистить кэш профиля</div>
+        <div class="settings-row-desc">Удалит сохранённое имя профиля (при следующем запуске пересоберёт)</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="setClearCache">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-trash"/></svg>
+        <span class="btn-text">Очистить</span>
+      </button>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Папка данных</div>
+        <div class="settings-row-desc" id="setDataPath">—</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="setOpenDataPath">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-file"/></svg>
+        <span class="btn-text">Открыть</span>
+      </button>
+    </div>
+
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Версия</div>
+        <div class="settings-row-desc" id="setVersion">—</div>
+      </div>
+      <a href="#" id="setGithubLink" class="btn btn-ghost btn-sm">
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-target"/></svg>
+        <span class="btn-text">GitHub</span>
+      </a>
+    </div>
   </div>
+
   <div class="btn-row">
     <button class="btn btn-primary" id="saveSettingsBtn">
       <svg class="icon" aria-hidden="true"><use href="#icon-save"/></svg>
-      <span class="btn-text">Сохранить</span>
+      <span class="btn-text">Сохранить настройки</span>
     </button>
     <span id="settingsSaved" class="save-notice" style="display:none">
       <svg class="icon icon-sm" aria-hidden="true"><use href="#icon-check"/></svg> Сохранено

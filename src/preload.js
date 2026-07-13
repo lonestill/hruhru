@@ -42,6 +42,14 @@ contextBridge.exposeInMainWorld('api', {
     settingsLoad:     ()     => ipcRenderer.invoke('settings:load'),
     settingsSave:     (d)    => ipcRenderer.invoke('settings:save', d),
 
+    // App
+    appVersion:       ()     => ipcRenderer.invoke('app:version'),
+    appDataPath:      ()     => ipcRenderer.invoke('app:dataPath'),
+    appClearCache:    ()     => ipcRenderer.invoke('app:clearCache'),
+    appOpenDataPath:  ()     => ipcRenderer.invoke('app:openDataPath'),
+    appGetAutoLaunch: ()     => ipcRenderer.invoke('app:getAutoLaunch'),
+    appCheckUpdates:  ()     => ipcRenderer.invoke('app:checkUpdates'),
+
     // Shell
     openUrl:          (url)  => ipcRenderer.invoke('shell:openUrl', url),
 

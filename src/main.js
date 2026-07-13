@@ -1,7 +1,8 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const https = require('https');
 
 const AuthFlow    = require('./lib/auth');
 const Crawler     = require('./lib/crawler');
@@ -17,6 +18,8 @@ let mainWindow = null;
 let authFlow   = null;
 let crawler    = null;
 let autoApply  = null;
+let tray       = null;
+let closeToTray = false;
 
 function loadSettings() {
     if (!fs.existsSync(SETTINGS_FILE)) return {};
@@ -45,6 +48,28 @@ function createWindow() {
     });
     mainWindow.setMenuBarVisibility(false);
     mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+    mainWindow.on('close', (e) => {
+        if (closeToTray && !app.isQuitting) {
+            e.preventDefault();
+            mainWindow.hide();
+        }
+    });
+}
+
+function setupTray() {
+    if (tray) { tray.destroy(); tray = null; }
+    if (!closeToTray) return;
+    const icon = nativeImage.createEmpty();
+    tray = new Tray(icon);
+    const contextMenu = Menu.buildFromTemplate([
+        { label: 'Показать', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
+        { type: 'separator' },
+        { label: 'Выход', click: () => { app.isQuitting = true; app.quit(); } }
+    ]);
+    tray.setToolTip('HH Job Tool');
+    tray.setContextMenu(contextMenu);
+    tray.on('click', () => { if (mainWindow) { mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show(); } });
 }
 
 // ---- First-launch Chromium downloader ----
@@ -190,13 +215,13 @@ ipcMain.handle('auth:otp', (_e, code) => { if (authFlow) authFlow.submitOtp(code
 ipcMain.handle('auth:cancel', () => { if (authFlow) { authFlow.cancel(); authFlow = null; } return { ok: true }; });
 ipcMain.handle('auth:status', async () => {
     const authExists = fs.existsSync(AUTH_FILE);
-    if (!authExists) return { authExists: false, profileName: null };
+    if (!authExists) return { authExists: false, profileName: null, profile: null };
     const cached = loadProfileCache();
-    return { authExists: true, profileName: cached ? cached.name : null };
+    return { authExists: true, profileName: cached ? cached.name : null, profile: cached };
 });
 ipcMain.handle('auth:fetchProfile', async () => {
     const profile = await getProfile().catch(() => null);
-    return profile ? profile.name : null;
+    return profile || null;
 });
 ipcMain.handle('auth:logout', () => {
     if (fs.existsSync(AUTH_FILE)) fs.unlinkSync(AUTH_FILE);
@@ -287,7 +312,74 @@ ipcMain.handle('resumes:load', async () => {
 
 // ===================== SETTINGS =====================
 ipcMain.handle('settings:load', () => ({ ok: true, data: loadSettings() }));
-ipcMain.handle('settings:save', (_e, data) => { saveSettings(data); return { ok: true }; });
+ipcMain.handle('settings:save', (_e, data) => {
+    saveSettings(data);
+    if (data.closeToTray !== undefined) {
+        closeToTray = !!data.closeToTray;
+        setupTray();
+    }
+    if (data.autoLaunch !== undefined) {
+        app.setLoginItemSettings({ openAtLogin: !!data.autoLaunch });
+    }
+    return { ok: true };
+});
+
+// ===================== APP =====================
+ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.handle('app:dataPath', () => DATA_DIR);
+
+ipcMain.handle('app:clearCache', () => {
+    clearProfileCache();
+    return { ok: true };
+});
+
+ipcMain.handle('app:openDataPath', () => {
+    shell.openPath(DATA_DIR);
+    return { ok: true };
+});
+
+ipcMain.handle('app:getAutoLaunch', () => {
+    return app.getLoginItemSettings().openAtLogin;
+});
+
+ipcMain.handle('app:checkUpdates', async () => {
+    return new Promise((resolve) => {
+        const opts = {
+            hostname: 'api.github.com',
+            path: '/repos/lonestill/hruhru/releases/latest',
+            headers: { 'User-Agent': 'hh-job-tool' },
+            timeout: 15000,
+        };
+        https.get(opts, (res) => {
+            let body = '';
+            res.on('data', (d) => body += d);
+            res.on('end', () => {
+                if (res.statusCode !== 200) {
+                    resolve({ ok: false, error: `GitHub API ${res.statusCode}` });
+                    return;
+                }
+                try {
+                    const r = JSON.parse(body);
+                    const current = app.getVersion();
+                    const latest = r.tag_name || '';
+                    const hasUpdate = latest && latest !== current &&
+                        latest.localeCompare(current, undefined, { numeric: true }) > 0;
+                    resolve({
+                        ok: true,
+                        current,
+                        latest: latest,
+                        hasUpdate,
+                        url: r.html_url,
+                        publishedAt: r.published_at,
+                    });
+                } catch (e) {
+                    resolve({ ok: false, error: e.message });
+                }
+            });
+        }).on('error', (e) => resolve({ ok: false, error: e.message }))
+          .on('timeout', function() { this.destroy(); resolve({ ok: false, error: 'timeout' }); });
+    });
+});
 
 // ===================== SHELL =====================
 ipcMain.handle('shell:openUrl', (_e, url) => { shell.openExternal(url); return { ok: true }; });

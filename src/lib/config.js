@@ -16,6 +16,7 @@ const HH = {
     resumes:     'https://hh.ru/applicant/resumes',
     negotiations:'https://hh.ru/applicant/negotiations',
     personal:    'https://hh.ru/applicant/personal',
+    profile:     'https://hh.ru/applicant/profile/me',
     search:      'https://hh.ru/search/vacancy',
 };
 
