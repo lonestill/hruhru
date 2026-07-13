@@ -24,7 +24,10 @@
     "parser",
     "auto-apply"
   ],
-  "author": "lonestill",
+  "author": {
+    "name": "lonestill",
+    "email": "admin@lonestill.uk"
+  },
   "license": "ISC",
   "type": "commonjs",
   "engines": {
@@ -67,6 +70,7 @@
       "LICENSE"
     ],
     "asar": true,
+    "publish": "never",
     "asarUnpack": [
       "node_modules/playwright/**",
       "node_modules/playwright-core/**"
@@ -111,7 +115,8 @@
         }
       ],
       "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
-      "category": "Utility"
+      "category": "Utility",
+      "maintainer": "lonestill <admin@lonestill.uk>"
     },
     "nsis": {
       "oneClick": false,

@@ -8,8 +8,6 @@ permissions:
   contents: write
 
 jobs:
-  # Compute a version string like v2026.07.13-abc1234 once and share it
-  # with the platform build jobs so every artifact uses the same tag.
   version:
     runs-on: ubuntu-latest
     outputs:
@@ -31,13 +29,10 @@ jobs:
         include:
           - os: windows-latest
             cmd: dist:win
-            artifact: HH Job Tool-*windows-x64*
           - os: macos-latest
             cmd: dist:mac
-            artifact: HH Job Tool-*macos-*
           - os: ubuntu-latest
             cmd: dist:linux
-            artifact: HH Job Tool-*linux-*
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
@@ -47,7 +42,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Set version in package.json
@@ -58,15 +53,24 @@ jobs:
       - run: npm ci
 
       - name: Build
+        run: npm run ${{ matrix.cmd }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run ${{ matrix.cmd }}
+
+      - name: List dist
+        shell: bash
+        run: ls -la dist/ || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.os }}
-          path: dist/${{ matrix.artifact }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.yml
           if-no-files-found: error
           retention-days: 7
 
