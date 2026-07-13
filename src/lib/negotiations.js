@@ -2,11 +2,10 @@ const { chromium } = require('playwright-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
 const fs = require('fs');
 const path = require('path');
-const { BROWSER, HH, TIMEOUT } = require('./config');
+const { BROWSER, HH, TIMEOUT, DATA_DIR } = require('./config');
 
 chromium.use(stealth);
 
-const DATA_DIR = path.join(__dirname, '..', '..');
 const AUTH_FILE = path.join(DATA_DIR, 'auth.json');
 
 const randomDelay = (min, max) => new Promise(r => setTimeout(r, Math.floor(Math.random() * (max - min + 1) + min)));

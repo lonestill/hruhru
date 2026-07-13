@@ -8,8 +8,8 @@ const Crawler     = require('./lib/crawler');
 const { searchVacancies, applyToVacancy, AutoApply } = require('./lib/vacancies');
 const { getNegotiations, getResumes } = require('./lib/negotiations');
 const { getProfile, clearProfileCache, loadProfileCache } = require('./lib/profile');
+const { DATA_DIR } = require('./lib/config');
 
-const DATA_DIR    = path.join(__dirname, '..');
 const AUTH_FILE   = path.join(DATA_DIR, 'auth.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 

@@ -4,11 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const { EventEmitter } = require('events');
 const { scrapeProfileName, saveProfileCache, clearProfileCache } = require('./profile');
-const { BROWSER, HH, TIMEOUT } = require('./config');
+const { BROWSER, HH, TIMEOUT, DATA_DIR } = require('./config');
 
 chromium.use(stealth);
 
-const DATA_DIR = path.join(__dirname, '..', '..');
 const AUTH_FILE = path.join(DATA_DIR, 'auth.json');
 
 class AuthFlow extends EventEmitter {

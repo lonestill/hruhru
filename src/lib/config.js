@@ -1,5 +1,8 @@
 'use strict';
 
+const path = require('path');
+const fs = require('fs');
+
 // Shared browser automation config used across all Playwright contexts.
 // Change the UA/viewport here to update everywhere at once.
 const BROWSER = {
@@ -23,4 +26,20 @@ const TIMEOUT = {
     short:       5_000,
 };
 
-module.exports = { BROWSER, HH, TIMEOUT };
+// Writable data directory.
+// In packaged Electron, __dirname/.. points inside app.asar (read-only),
+// so we use app.getPath('userData') which is a writable per-user folder.
+// In CLI mode (node init.js / parse.js) we fall back to the project root.
+let DATA_DIR;
+try {
+    const { app } = require('electron');
+    if (app && app.getPath) {
+        DATA_DIR = app.getPath('userData');
+    }
+} catch { /* not in Electron — CLI mode */ }
+if (!DATA_DIR) {
+    DATA_DIR = path.join(__dirname, '..', '..');
+}
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+module.exports = { BROWSER, HH, TIMEOUT, DATA_DIR };
