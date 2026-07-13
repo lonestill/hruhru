@@ -52,10 +52,40 @@ jobs:
 
       - run: npm ci
 
-      - name: Build
-        run: npm run ${{ matrix.cmd }}
+      - name: Cache Electron binary
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/AppData/Local/electron/Cache
+            ~/Library/Caches/electron
+          key: electron-31.7.7-${{ matrix.os }}
+
+      - name: Cache electron-builder binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron-builder
+            ~/AppData/Local/electron-builder/Cache
+            ~/Library/Caches/electron-builder
+          key: electron-builder-${{ matrix.os }}
+
+      - name: Build (with retry)
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in 1 2 3; do
+            echo "Attempt $i/3"
+            if npm run ${{ matrix.cmd }}; then
+              echo "Build succeeded on attempt $i"
+              exit 0
+            fi
+            echo "Build failed on attempt $i, retrying in 10s..."
+            sleep 10
+          done
+          echo "All 3 attempts failed"
+          exit 1
 
       - name: List dist
         shell: bash
