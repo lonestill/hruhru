@@ -324,6 +324,17 @@ ipcMain.handle('settings:save', (_e, data) => {
     return { ok: true };
 });
 
+ipcMain.handle('settings:blacklist-add', (_e, name) => {
+    const s = loadSettings();
+    if (!Array.isArray(s.blacklist)) s.blacklist = [];
+    name = (name || '').trim();
+    if (name && !s.blacklist.some(b => b.toLowerCase() === name.toLowerCase())) {
+        s.blacklist.push(name);
+        saveSettings(s);
+    }
+    return { ok: true, blacklist: s.blacklist };
+});
+
 // ===================== APP =====================
 ipcMain.handle('app:version', () => app.getVersion());
 ipcMain.handle('app:dataPath', () => DATA_DIR);

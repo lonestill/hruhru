@@ -95,6 +95,23 @@
   </div>
 </div>
 
+<!-- ===== COMMAND PALETTE ===== -->
+<div id="cmdPalette" class="cmd-backdrop" style="display:none">
+  <div class="cmd-panel">
+    <div class="cmd-input-wrap">
+      <svg class="icon icon-sm" aria-hidden="true" style="color:var(--text3)"><use href="#icon-search"/></svg>
+      <input id="cmdInput" type="text" class="cmd-input" placeholder="Поиск по всему приложению…" autocomplete="off" spellcheck="false">
+      <kbd class="cmd-kbd">Esc</kbd>
+    </div>
+    <div id="cmdResults" class="cmd-results"></div>
+    <div class="cmd-footer">
+      <span><kbd>↑</kbd><kbd>↓</kbd> навигация</span>
+      <span><kbd>↵</kbd> выбрать</span>
+      <span><kbd>Esc</kbd> закрыть</span>
+    </div>
+  </div>
+</div>
+
 <!-- ===== OTP MODAL ===== -->
 <div id="otpModal" class="modal-backdrop" style="display:none">
   <div class="modal">

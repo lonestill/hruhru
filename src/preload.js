@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('api', {
     // Settings
     settingsLoad:     ()     => ipcRenderer.invoke('settings:load'),
     settingsSave:     (d)    => ipcRenderer.invoke('settings:save', d),
+    blacklistAdd:     (name) => ipcRenderer.invoke('settings:blacklist-add', name),
 
     // App
     appVersion:       ()     => ipcRenderer.invoke('app:version'),

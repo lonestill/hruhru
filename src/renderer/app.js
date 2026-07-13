@@ -29,6 +29,65 @@ function fmtDate(iso) {
     } catch { return iso; }
 }
 
+const SKELETON_COUNT = 6;
+
+function buildVacancySkeleton() {
+    const card = document.createElement('div');
+    card.className = 'vacancy-card skel';
+    card.innerHTML = `
+      <div class="vc-header">
+        <div class="vc-title-block">
+          <div class="sk-row sk-title-sp"></div>
+          <div class="sk-row sk-employer-sp"></div>
+        </div>
+      </div>
+      <div class="sk-badges-sp">
+        <div class="sk-row sk-badge-sp"></div>
+        <div class="sk-row sk-badge-sp b2"></div>
+        <div class="sk-row sk-badge-sp b3"></div>
+      </div>
+      <div class="sk-row sk-snippet-sp"></div>
+      <div class="sk-row sk-snippet-sp s2"></div>
+      <div class="sk-actions-sp">
+        <div class="sk-row sk-btn-sp"></div>
+      </div>`;
+    return card;
+}
+
+function showVacancySkeletons(n = SKELETON_COUNT) {
+    searchResults.innerHTML = '';
+    searchEmpty.style.display = 'none';
+    searchMeta.style.display = 'none';
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < n; i++) frag.appendChild(buildVacancySkeleton());
+    searchResults.appendChild(frag);
+}
+
+function buildNegoSkeleton() {
+    const card = document.createElement('div');
+    card.className = 'nego-card skel';
+    card.innerHTML = `
+      <div class="sk-row sk-logo-sp"></div>
+      <div class="nego-info">
+        <div class="sk-row sk-nego-title"></div>
+        <div class="sk-row sk-nego-empl"></div>
+      </div>
+      <div class="sk-row sk-nego-status"></div>
+      <div class="sk-row sk-nego-date"></div>`;
+    return card;
+}
+
+function showNegoSkeletons(n = SKELETON_COUNT) {
+    negoList.innerHTML = '';
+    negoEmpty.style.display = 'none';
+    negoLoading.style.display = 'none';
+    negoStats.style.display = 'none';
+    negoToolbar.style.display = 'none';
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < n; i++) frag.appendChild(buildNegoSkeleton());
+    negoList.appendChild(frag);
+}
+
 const _logQueues = new Map();
 const _logFlushScheduled = new Set();
 const LOG_MAX_LINES = 500;
@@ -353,7 +412,8 @@ function collectClientFilters() {
 
 function applyClientFilters(cards, f) {
     let filtered = cards;
-    if (f.hideResponded) filtered = filtered.filter(v => !v.responded);
+    filtered = filtered.filter(v => !isVacancyHidden(v.id));
+    if (f && f.hideResponded) filtered = filtered.filter(v => !v.responded);
     if (f.salaryMax) {
         filtered = filtered.filter(v => {
             const s = parseSalaryNum(v.salary);
@@ -422,9 +482,19 @@ function renderVacancies() {
     const sorted = sortCards(filtered, _sortMode);
     const hlWords = getSearchHighlightWords();
 
+    _visibleSorted = sorted;
+    _visibleCount = Math.min(sorted.length, VISIBLE_CHUNK);
     searchResults.innerHTML = '';
     const frag = document.createDocumentFragment();
-    sorted.forEach(v => frag.appendChild(buildVacancyCard(v, hlWords)));
+    for (let i = 0; i < _visibleCount; i++) {
+        frag.appendChild(buildVacancyCard(sorted[i], hlWords));
+    }
+    if (sorted.length > _visibleCount) {
+        const sentinel = document.createElement('div');
+        sentinel.id = 'searchScrollSentinel';
+        sentinel.style.minHeight = '400px';
+        frag.appendChild(sentinel);
+    }
     searchResults.appendChild(frag);
 
     const totalLoaded = _allCards.length;
@@ -443,9 +513,48 @@ function renderVacancies() {
     }
 }
 
+const VISIBLE_CHUNK = 60;
+let _visibleSorted = [];
+let _visibleCount = 0;
+let _searchScrollRaf = false;
+
+function onSearchScroll() {
+    if (_searchScrollRaf) return;
+    _searchScrollRaf = true;
+    requestAnimationFrame(() => {
+        _searchScrollRaf = false;
+        if (_visibleCount >= _visibleSorted.length) return;
+        const sentinel = document.getElementById('searchScrollSentinel');
+        if (!sentinel) return;
+        const rect = sentinel.getBoundingClientRect();
+        const trigger = window.innerHeight + 600;
+        if (rect.top < trigger) {
+            const hlWords = getSearchHighlightWords();
+            const start = _visibleCount;
+            const end = Math.min(_visibleSorted.length, start + VISIBLE_CHUNK);
+            const frag = document.createDocumentFragment();
+            for (let i = start; i < end; i++) {
+                frag.appendChild(buildVacancyCard(_visibleSorted[i], hlWords));
+            }
+            sentinel.remove();
+            searchResults.appendChild(frag);
+            _visibleCount = end;
+            if (_visibleSorted.length > _visibleCount) {
+                searchResults.appendChild(sentinel);
+            }
+        }
+    });
+}
+document.addEventListener('scroll', onSearchScroll, { passive: true, capture: true });
+window.addEventListener('resize', onSearchScroll, { passive: true });
+
 function buildVacancyCard(v, hlWords) {
     const card = document.createElement('div');
-    card.className = 'vacancy-card' + (v.responded ? ' responded' : '');
+    card.className = 'vacancy-card' + (v.responded ? ' responded' : '') + (isVacancyHidden(v.id) ? ' hidden' : '');
+    card.dataset.vacancyId = v.id || '';
+    card.dataset.vacancyUrl = v.url || '';
+    card.dataset.vacancyTitle = v.title || '';
+    card.dataset.vacancyEmployer = v.employer || '';
 
     const badges = [
         v.salary     && `<span class="badge badge-salary">${esc(v.salary)}</span>`,
@@ -573,9 +682,7 @@ async function doSearch(page) {
 
     searchBtn.disabled = true;
     searchBtn.classList.add('loading');
-    searchResults.innerHTML = '';
-    searchEmpty.style.display = 'none';
-    searchMeta.style.display = 'none';
+    showVacancySkeletons();
 
     const res = await window.api.vacanciesSearch({ ...serverParams, page });
 
@@ -916,9 +1023,18 @@ function getFilteredNego() {
 function renderNegoList() {
     _negoListRaf = false;
     const filtered = getFilteredNego();
-    const frag = document.createDocumentFragment();
-    filtered.forEach(n => frag.appendChild(renderNegoCard(n)));
     negoList.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    const n = Math.min(filtered.length, NEGO_VISIBLE_CHUNK);
+    for (let i = 0; i < n; i++) frag.appendChild(renderNegoCard(filtered[i]));
+    if (filtered.length > n) {
+        const s = document.createElement('div');
+        s.id = 'negoScrollSentinel';
+        s.style.minHeight = '300px';
+        s.dataset.total = filtered.length;
+        s.dataset.loaded = n;
+        frag.appendChild(s);
+    }
     negoList.appendChild(frag);
 }
 
@@ -929,6 +1045,39 @@ function scheduleNegoRender() {
 }
 
 negoRefreshBtn.addEventListener('click', loadNegotiations);
+
+const NEGO_VISIBLE_CHUNK = 60;
+let _negoScrollRaf = false;
+function onNegoScroll() {
+    if (_negoScrollRaf) return;
+    _negoScrollRaf = true;
+    requestAnimationFrame(() => {
+        _negoScrollRaf = false;
+        const s = document.getElementById('negoScrollSentinel');
+        if (!s) return;
+        const rect = s.getBoundingClientRect();
+        if (rect.top >= window.innerHeight + 400) return;
+        const total = +s.dataset.total;
+        const loaded = +s.dataset.loaded;
+        if (!total || !loaded) return;
+        const filtered = getFilteredNego();
+        const frag = document.createDocumentFragment();
+        const end = Math.min(filtered.length, loaded + NEGO_VISIBLE_CHUNK);
+        for (let i = loaded; i < end; i++) frag.appendChild(renderNegoCard(filtered[i]));
+        s.remove();
+        negoList.appendChild(frag);
+        if (filtered.length > end) {
+            const ns = document.createElement('div');
+            ns.id = 'negoScrollSentinel';
+            ns.style.minHeight = '300px';
+            ns.dataset.total = filtered.length;
+            ns.dataset.loaded = end;
+            negoList.appendChild(ns);
+        }
+    });
+}
+document.addEventListener('scroll', onNegoScroll, { passive: true, capture: true });
+window.addEventListener('resize', onNegoScroll, { passive: true });
 
 negoFilterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -969,6 +1118,8 @@ window.api.onNegotiationsPage(items => {
 function renderNegoCard(n) {
     const card = document.createElement('div');
     card.className = 'nego-card';
+    card.dataset.negoUrl = n.vacancyUrl || n.url || '';
+    card.dataset.negoTitle = n.vacancyTitle || n.title || '';
 
     const statusClass = getStatusClass(n.status);
     const statusLabel = n.status || 'Неизвестно';
@@ -991,11 +1142,7 @@ function renderNegoCard(n) {
 }
 
 async function loadNegotiations() {
-    negoLoading.style.display = 'flex';
-    negoList.innerHTML = '';
-    negoEmpty.style.display = 'none';
-    negoStats.style.display = 'none';
-    negoToolbar.style.display = 'none';
+    showNegoSkeletons();
     _negoItems = [];
     _negoCounts = { total: 0, invite: 0, reject: 0, viewed: 0, new: 0 };
     _negoFilter = 'all';
@@ -1012,6 +1159,7 @@ async function loadNegotiations() {
     // Cards were already appended live via onNegotiationsPage above, so
     // res.data here is only used to detect an empty/errored result.
     if (!res.ok) {
+        negoList.innerHTML = '';
         negoEmpty.style.display = 'flex';
         negoStats.style.display = 'none';
         negoToolbar.style.display = 'none';
@@ -1019,6 +1167,7 @@ async function loadNegotiations() {
         return;
     }
     if (!_negoItems.length) {
+        negoList.innerHTML = '';
         negoEmpty.style.display = 'flex';
         negoStats.style.display = 'none';
         negoToolbar.style.display = 'none';
@@ -1278,4 +1427,286 @@ window.api.onCrawlDone(({ success, message }) => {
     crawlStartBtn.style.display = '';
     crawlStopBtn.style.display  = 'none';
     crawlStopBtn.disabled = false;
+});
+
+// ===================== COMMAND PALETTE ====================
+const cmdPalette = document.getElementById('cmdPalette');
+const cmdInput   = document.getElementById('cmdInput');
+const cmdResults = document.getElementById('cmdResults');
+let _cmdItems = [];
+let _cmdSelected = 0;
+
+function cmdOpen() {
+    cmdPalette.style.display = 'flex';
+    cmdInput.value = '';
+    _cmdSelected = 0;
+    cmdRefresh('');
+    setTimeout(() => cmdInput.focus(), 10);
+}
+function cmdClose() { cmdPalette.style.display = 'none'; }
+
+function cmdHl(s, q) {
+    if (!q) return esc(s);
+    const i = String(s).toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return esc(s);
+    return esc(s.slice(0, i)) + '<mark>' + esc(s.slice(i, i + q.length)) + '</mark>' + esc(s.slice(i + q.length));
+}
+
+function cmdBuildItems(q) {
+    const items = [];
+    const ql = q.toLowerCase();
+
+    // Tabs
+    const tabsList = [
+        { id: 'search',       label: 'Поиск',          icon: '#icon-search' },
+        { id: 'autoapply',    label: 'Автоотклик',      icon: '#icon-bolt' },
+        { id: 'negotiations', label: 'Мои отклики',     icon: '#icon-inbox' },
+        { id: 'settings',     label: 'Настройки',       icon: '#icon-settings' },
+    ];
+    tabsList.forEach(t => {
+        if (!q || t.label.toLowerCase().includes(ql)) {
+            items.push({ type: 'tab', group: 'Вкладки', icon: t.icon, title: t.label, sub: 'Перейти во вкладку', action: () => switchTab(t.id) });
+        }
+    });
+
+    // Actions
+    const actions = [
+{ label: 'Запустить автоотклик',  icon: '#icon-bolt',   show: !aaRunning,     action: () => { switchTab('autoapply'); aaStartBtn.click(); } },
+        { label: 'Остановить автоотклик', icon: '#icon-stop',   show: !!aaRunning,    action: () => { switchTab('autoapply'); aaStopBtn.click(); } },
+        { label: 'Обновить отклики',      icon: '#icon-refresh',show: true,            action: () => { switchTab('negotiations'); _negoLoaded = false; loadNegotiations(); } },
+        { label: 'Проверить обновления',  icon: '#icon-target', show: true,            action: () => { switchTab('settings'); setCheckUpdates.click(); } },
+        { label: 'Сохранить настройки',    icon: '#icon-save',   show: true,            action: () => { switchTab('settings'); saveSettingsBtn.click(); } },
+        { label: 'Открыть папку данных',   icon: '#icon-file',   show: true,            action: () => { switchTab('settings'); setOpenDataPath.click(); } },
+        { label: 'Очистить кэш профиля',   icon: '#icon-trash',  show: true,            action: () => { switchTab('settings'); setClearCache.click(); } },
+        { label: 'Выйти из аккаунта',     icon: '#icon-logout', show: logoutBtn.style.display !== 'none', action: () => logoutBtn.click() },
+    ];
+    actions.forEach(a => {
+        if (!a.show) return;
+        if (!q || a.label.toLowerCase().includes(ql)) {
+            items.push({ type: 'action', group: 'Действия', icon: a.icon, title: a.label, sub: '', action: a.action });
+        }
+    });
+
+    // Vacancies (from current search results)
+    if (_allCards && _allCards.length) {
+        _allCards.forEach(v => {
+            const title = v.title || '';
+            const employer = v.employer || '';
+            const haystack = (title + ' ' + employer).toLowerCase();
+            if (!q || haystack.includes(ql)) {
+                items.push({
+                    type: 'vacancy', group: 'Вакансии',
+                    icon: '#icon-search',
+                    title: title, sub: employer,
+                    action: () => {
+                        switchTab('search');
+                        if (v.url) window.api.openUrl(v.url);
+                    }
+                });
+            }
+        });
+    }
+
+    // Negotiations
+    if (_negoItems && _negoItems.length) {
+        _negoItems.forEach(n => {
+            const title = n.vacancyTitle || n.title || '';
+            const employer = n.employerName || n.employer || '';
+            const haystack = (title + ' ' + employer).toLowerCase();
+            if (!q || haystack.includes(ql)) {
+                items.push({
+                    type: 'nego', group: 'Отклики',
+                    icon: '#icon-inbox',
+                    title: title, sub: employer,
+                    action: () => {
+                        switchTab('negotiations');
+                        const url = n.vacancyUrl || n.url;
+                        if (url) window.api.openUrl(url);
+                    }
+                });
+            }
+        });
+    }
+
+    return items;
+}
+
+function switchTab(id) {
+    const btn = document.querySelector(`.nav-item[data-tab="${id}"]`);
+    if (btn) btn.click();
+}
+
+function cmdRefresh(q) {
+    _cmdItems = cmdBuildItems(q);
+    _cmdSelected = 0;
+    cmdRender();
+}
+
+function cmdRender() {
+    if (!_cmdItems.length) {
+        cmdResults.innerHTML = '<div class="cmd-empty">Ничего не найдено</div>';
+        return;
+    }
+    const groups = new Map();
+    _cmdItems.forEach((it, i) => {
+        if (!groups.has(it.group)) groups.set(it.group, []);
+        groups.get(it.group).push({ it, i });
+    });
+    let html = '';
+    for (const [g, list] of groups) {
+        html += `<div class="cmd-group-title">${esc(g)}</div>`;
+        for (const { it, i } of list) {
+            const cls = i === _cmdSelected ? 'cmd-item selected' : 'cmd-item';
+            const q = cmdInput.value;
+            html += `<div class="${cls}" data-idx="${i}">
+                <div class="cmd-item-icon"><svg class="icon icon-sm" aria-hidden="true"><use href="${it.icon}"/></svg></div>
+                <div class="cmd-item-text">
+                    <div class="cmd-item-title">${cmdHl(it.title, q)}</div>
+                    ${it.sub ? `<div class="cmd-item-sub">${cmdHl(it.sub, q)}</div>` : ''}
+                </div>
+            </div>`;
+        }
+    }
+    cmdResults.innerHTML = html;
+    cmdResults.querySelectorAll('.cmd-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const idx = +el.dataset.idx;
+            const item = _cmdItems[idx];
+            if (item) { cmdClose(); item.action(); }
+        });
+        el.addEventListener('mouseenter', () => {
+            _cmdSelected = +el.dataset.idx;
+            cmdResults.querySelectorAll('.cmd-item').forEach(x => x.classList.remove('selected'));
+            el.classList.add('selected');
+        });
+    });
+    const sel = cmdResults.querySelector('.cmd-item.selected');
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (cmdPalette.style.display === 'flex') cmdClose();
+        else cmdOpen();
+    }
+    if (e.key === 'Escape' && cmdPalette.style.display === 'flex') {
+        cmdClose();
+    }
+    if (cmdPalette.style.display !== 'flex') return;
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _cmdSelected = Math.min(_cmdSelected + 1, _cmdItems.length - 1);
+        cmdRender();
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _cmdSelected = Math.max(_cmdSelected - 1, 0);
+        cmdRender();
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const item = _cmdItems[_cmdSelected];
+        if (item) { cmdClose(); item.action(); }
+    }
+});
+
+cmdInput.addEventListener('input', () => cmdRefresh(cmdInput.value));
+cmdPalette.addEventListener('click', e => { if (e.target === cmdPalette) cmdClose(); });
+
+// ===================== CONTEXT MENU ====================
+const HIDDEN_KEY = 'hh_hidden_vacancies';
+function getHiddenVacancies() {
+    try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]')); }
+    catch { return new Set(); }
+}
+function isVacancyHidden(id) { return id ? getHiddenVacancies().has(String(id)) : false; }
+function hideVacancy(id) {
+    if (!id) return;
+    const s = getHiddenVacancies();
+    s.add(String(id));
+    localStorage.setItem(HIDDEN_KEY, JSON.stringify([...s]));
+}
+function unhideVacancy(id) {
+    if (!id) return;
+    const s = getHiddenVacancies();
+    s.delete(String(id));
+    localStorage.setItem(HIDDEN_KEY, JSON.stringify([...s]));
+}
+
+const ctxMenu = document.createElement('div');
+ctxMenu.className = 'ctx-menu';
+document.body.appendChild(ctxMenu);
+
+function ctxShow(x, y, items) {
+    ctxMenu.innerHTML = '';
+    items.forEach((it, i) => {
+        if (it.sep) { ctxMenu.appendChild(document.createElement('div')).className = 'ctx-sep'; return; }
+        const el = document.createElement('div');
+        el.className = 'ctx-item' + (it.danger ? ' danger' : '');
+        el.innerHTML = `<svg class="icon icon-sm" aria-hidden="true"><use href="${it.icon || '#icon-file'}"/></svg><span>${esc(it.label)}</span>`;
+        el.addEventListener('click', () => { ctxHide(); it.action && it.action(); });
+        ctxMenu.appendChild(el);
+    });
+    ctxMenu.classList.add('open');
+    const rect = ctxMenu.getBoundingClientRect();
+    const maxX = window.innerWidth - rect.width - 8;
+    const maxY = window.innerHeight - rect.height - 8;
+    ctxMenu.style.left = Math.min(x, maxX) + 'px';
+    ctxMenu.style.top = Math.min(y, maxY) + 'px';
+}
+function ctxHide() { ctxMenu.classList.remove('open'); }
+document.addEventListener('click', ctxHide);
+document.addEventListener('scroll', ctxHide, true);
+
+document.addEventListener('contextmenu', e => {
+    const card = e.target.closest('.vacancy-card');
+    if (card && !card.classList.contains('skel')) {
+        e.preventDefault();
+        const id = card.dataset.vacancyId;
+        const url = card.dataset.vacancyUrl;
+        const title = card.dataset.vacancyTitle || '';
+        const employer = card.dataset.vacancyEmployer || '';
+        const items = [
+            { label: 'Открыть в браузере', icon: '#icon-search', action: () => url && window.api.openUrl(url) },
+            { label: 'Скопировать ссылку', icon: '#icon-file', action: () => navigator.clipboard.writeText(url || '') },
+{ label: 'Скопировать название', icon: '#icon-file', action: () => navigator.clipboard.writeText(title) },
+            { label: 'Добавить компанию в чёрный список', icon: '#icon-ban', danger: true, action: async () => {
+                if (!employer) return;
+                await window.api.blacklistAdd(employer);
+                if (!isVacancyHidden(id)) {
+                    hideVacancy(id);
+                    card.classList.add('hidden');
+                }
+                scheduleSearchRender();
+            } },
+            { sep: true },
+            { label: 'Скрыть вакансию', icon: '#icon-eye-off', danger: true, action: () => {
+                hideVacancy(id);
+                card.classList.add('hidden');
+                scheduleSearchRender();
+            } },
+        ];
+        if (isVacancyHidden(id)) {
+            items[items.length - 1].label = 'Показать вакансию';
+            items[items.length - 1].action = () => {
+                unhideVacancy(id);
+                card.classList.remove('hidden');
+                scheduleSearchRender();
+            };
+        }
+        ctxShow(e.clientX, e.clientY, items);
+        return;
+    }
+    const ncard = e.target.closest('.nego-card');
+    if (ncard && !ncard.classList.contains('skel')) {
+        e.preventDefault();
+        const url = ncard.dataset.negoUrl;
+        const title = ncard.dataset.negoTitle || '';
+        const items = [
+            { label: 'Открыть переписку', icon: '#icon-inbox', action: () => url && window.api.openUrl(url) },
+            { label: 'Скопировать ссылку', icon: '#icon-file', action: () => navigator.clipboard.writeText(url || '') },
+            { label: 'Скопировать название', icon: '#icon-file', action: () => navigator.clipboard.writeText(title) },
+        ];
+        ctxShow(e.clientX, e.clientY, items);
+        return;
+    }
 });
