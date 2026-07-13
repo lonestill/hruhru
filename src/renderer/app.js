@@ -11,7 +11,7 @@ navItems.forEach(btn => {
         tabs.forEach(tab => tab.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById(`tab-${t}`).classList.add('active');
-        if (t === 'negotiations') loadNegotiations();
+        if (t === 'negotiations' && !_negoLoaded) loadNegotiations();
         if (t === 'settings') loadSettings();
     });
 });
@@ -857,6 +857,7 @@ const negoSort       = document.getElementById('negoSort');
 const negoFilterBtns = document.querySelectorAll('.nego-filter-btn');
 
 let _negoItems  = [];
+let _negoLoaded = false;
 let _negoCounts = { total: 0, invite: 0, reject: 0, viewed: 0, new: 0 };
 let _negoFilter = 'all';
 let _negoSearchText = '';
@@ -1022,6 +1023,7 @@ async function loadNegotiations() {
         negoStats.style.display = 'none';
         negoToolbar.style.display = 'none';
     }
+    _negoLoaded = true;
 }
 
 function getStatusClass(status) {
