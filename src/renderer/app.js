@@ -201,6 +201,8 @@ async function fetchAndShowProfile() {
 if (authExists) {
             loadSettings();
             if (!authRes.profileName) fetchAndShowProfile();
+            loadNegotiations();
+            fetchResumes();
         }
 
         restoreLastSearch();
@@ -1186,7 +1188,8 @@ async function loadNegotiations() {
         negoStats.style.display = 'none';
         negoToolbar.style.display = 'none';
     }
-    _negoLoaded = true;
+_negoLoaded = true;
+    renderDashboard();
 }
 
 function getStatusClass(status) {
@@ -1251,16 +1254,18 @@ function addSettingsTemplateRow(value = '') {
 setAddTemplate.addEventListener('click', () => addSettingsTemplateRow());
 
 // --- Resumes ---
-loadResumesBtn.addEventListener('click', async () => {
+loadResumesBtn.addEventListener('click', () => fetchResumes());
+
+async function fetchResumes() {
     loadResumesBtn.disabled = true;
     loadResumesBtn.classList.add('loading');
     const res = await window.api.resumesLoad();
     loadResumesBtn.disabled = false;
     loadResumesBtn.classList.remove('loading');
-    if (!res.ok) { alert(`Ошибка: ${res.error}`); return; }
+    if (!res.ok) return;
     resumesData = res.data || [];
     renderResumes();
-});
+}
 
 function renderResumes() {
     const el = document.getElementById('resumesList');
