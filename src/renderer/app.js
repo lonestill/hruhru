@@ -11,9 +11,10 @@ navItems.forEach(btn => {
         tabs.forEach(tab => tab.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById(`tab-${t}`).classList.add('active');
-if (t === 'negotiations' && !_negoLoaded) loadNegotiations();
+        if (t === 'negotiations' && !_negoLoaded) loadNegotiations();
         if (t === 'settings') loadSettings();
         if (t === 'dashboard') renderDashboard();
+        if (t === 'autoapply') refreshAaStatus();
     });
 });
 
@@ -206,6 +207,7 @@ if (authExists) {
         }
 
         restoreLastSearch();
+        refreshAaStatus();
 
     // Auto-check for updates in background
     checkForUpdates(true);
@@ -877,6 +879,94 @@ function aaGetChecked(selector) {
     return Array.from(document.querySelectorAll(selector + ':checked')).map(el => el.value);
 }
 
+const AA_CONFIG_KEY = 'hh_autoapply_config';
+
+function saveAutoApplyConfig(config) {
+    try {
+        localStorage.setItem(AA_CONFIG_KEY, JSON.stringify({
+            searchParams: config.searchParams,
+            filters: config.filters,
+            maxApply: config.maxApply,
+            maxPages: config.maxPages,
+            maxErrors: config.maxErrors,
+            retryAttempts: config.retryAttempts,
+            dryRun: config.dryRun,
+            scheduleEnabled: config.scheduleEnabled,
+            scheduleInterval: config.scheduleInterval,
+            coverLetters: config.coverLetters,
+            ts: Date.now()
+        }));
+    } catch { /* ignore */ }
+}
+
+function loadAutoApplyConfig() {
+    try { return JSON.parse(localStorage.getItem(AA_CONFIG_KEY) || 'null'); }
+    catch { return null; }
+}
+
+function applyAutoApplyConfig(cfg) {
+    if (!cfg) return;
+    const sp = cfg.searchParams || {};
+    if (sp.text !== undefined) document.getElementById('aa-text').value = sp.text;
+    if (sp.area !== undefined) document.getElementById('aa-area').value = (sp.area || []).join(', ');
+    if (sp.experience !== undefined) document.getElementById('aa-experience').value = sp.experience;
+    if (sp.searchPeriod !== undefined) document.getElementById('aa-period').value = sp.searchPeriod;
+    if (sp.orderBy !== undefined) document.getElementById('aa-order').value = sp.orderBy;
+    if (sp.workFormat) {
+        document.querySelectorAll('.aa-wformat').forEach(el => el.checked = sp.workFormat.includes(el.value));
+    }
+    if (sp.employmentForm) {
+        document.querySelectorAll('.aa-empform').forEach(el => el.checked = sp.employmentForm.includes(el.value));
+    }
+    if (sp.education !== undefined) document.getElementById('aa-education').value = sp.education;
+    if (sp.label) {
+        document.querySelectorAll('.aa-label').forEach(el => el.checked = sp.label.includes(el.value));
+    }
+    const f = cfg.filters || {};
+    if (f.minSalary !== undefined) document.getElementById('aa-min-salary').value = f.minSalary || '';
+    if (f.maxSalary !== undefined) document.getElementById('aa-max-salary').value = f.maxSalary || '';
+    if (f.onlyWithSalary !== undefined) document.getElementById('aa-only-salary').checked = f.onlyWithSalary;
+    if (f.minRating !== undefined) document.getElementById('aa-min-rating').value = f.minRating || '';
+    if (f.minReviews !== undefined) document.getElementById('aa-min-reviews').value = f.minReviews || '';
+    if (f.keywords !== undefined) document.getElementById('aa-keywords').value = (f.keywords || []).join(', ');
+    if (f.keywordMode !== undefined) document.getElementById('aa-keyword-mode').value = f.keywordMode;
+    if (f.excludeWords !== undefined) document.getElementById('aa-exclude').value = (f.excludeWords || []).join(', ');
+    if (f.whitelist !== undefined) document.getElementById('aa-whitelist').value = (f.whitelist || []).join(', ');
+    if (cfg.maxApply !== undefined) document.getElementById('aa-max').value = cfg.maxApply;
+    if (cfg.maxPages !== undefined) document.getElementById('aa-max-pages').value = cfg.maxPages;
+    if (cfg.maxErrors !== undefined) document.getElementById('aa-max-errors').value = cfg.maxErrors;
+    if (cfg.retryAttempts !== undefined) document.getElementById('aa-retry').value = cfg.retryAttempts;
+    if (cfg.dryRun !== undefined) document.getElementById('aa-dry-run').checked = cfg.dryRun;
+    if (cfg.scheduleEnabled !== undefined) document.getElementById('aa-schedule-enabled').checked = cfg.scheduleEnabled;
+    if (cfg.scheduleInterval !== undefined) document.getElementById('aa-schedule-interval').value = cfg.scheduleInterval;
+    if (cfg.coverLetters && cfg.coverLetters.length) {
+        aaTemplatesEl.innerHTML = '';
+        cfg.coverLetters.forEach(t => addTemplateRow(t));
+    }
+}
+
+function renderResumeDropdown() {
+    const sel = document.getElementById('aa-resume');
+    if (!sel) return;
+    sel.innerHTML = '';
+    if (!resumesData.length) {
+        const opt = document.createElement('option');
+        opt.value = '0';
+        opt.textContent = 'Загрузите резюме в Настройках';
+        sel.appendChild(opt);
+        return;
+    }
+    resumesData.forEach((r, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = r.title || `Резюме #${i + 1}`;
+        sel.appendChild(opt);
+    });
+    if (selectedResumeIndex >= 0 && selectedResumeIndex < resumesData.length) {
+        sel.value = String(selectedResumeIndex);
+    }
+}
+
 function collectAutoApplyConfig() {
     const kwRaw = document.getElementById('aa-keywords').value.trim();
     const exclRaw = document.getElementById('aa-exclude').value.trim();
@@ -884,6 +974,7 @@ function collectAutoApplyConfig() {
     const area = document.getElementById('aa-area').value.trim();
 
     return {
+        resumeIndex: parseInt(document.getElementById('aa-resume').value) || 0,
         searchParams: {
             text: document.getElementById('aa-text').value.trim(),
             area: area ? area.split(',').map(s => s.trim()).filter(Boolean) : [],
@@ -930,6 +1021,8 @@ aaStartBtn.addEventListener('click', async () => {
     aaStopBtn.style.display  = '';
     aaLogCard.style.display  = '';
     aaStats.style.display    = 'flex';
+    setAaLock(true);
+    saveAutoApplyConfig(config);
     if (config.scheduleEnabled) {
         aaScheduleStatus.style.display = '';
         aaScheduleStatus.textContent = `Расписание активно: каждые ${config.scheduleInterval}ч`;
@@ -946,17 +1039,44 @@ aaStopBtn.addEventListener('click', async () => {
 window.api.onAutoApplyLog(m => appendLog('aaLog', m));
 
 let _aaStats = null, _aaStatsRaf = false;
-window.api.onAutoApplyProgress(({ applied, skipped, errors, page }) => {
-    _aaStats = { applied, skipped, errors, page };
+window.api.onAutoApplyProgress((payload) => {
+    _aaStats = payload;
     if (_aaStatsRaf) return;
     _aaStatsRaf = true;
     requestAnimationFrame(() => {
         _aaStatsRaf = false;
         if (!_aaStats) return;
-        document.getElementById('aa-applied').textContent = _aaStats.applied;
-        document.getElementById('aa-skipped').textContent = _aaStats.skipped;
-        document.getElementById('aa-errors').textContent  = _aaStats.errors;
-        document.getElementById('aa-page').textContent     = _aaStats.page || 0;
+        const { applied, skipped, errors, page, maxApply, phase, current, employer, salary } = _aaStats;
+        document.getElementById('aa-applied').textContent = applied;
+        document.getElementById('aa-skipped').textContent = skipped;
+        document.getElementById('aa-errors').textContent  = errors;
+        document.getElementById('aa-page').textContent     = page || 0;
+
+        const detailed = document.getElementById('aaDetailed');
+        const currentEl = document.getElementById('aaCurrent');
+        if (detailed) detailed.style.display = '';
+        if (currentEl) {
+            currentEl.style.display = current ? '' : 'none';
+            if (current) {
+                const phaseText = phase === 'applied' ? 'Обрабатываю' : 'Сканирую';
+                const sub = [employer, salary].filter(Boolean).join(' · ');
+                currentEl.innerHTML = `<span class="aa-current-phase">${phaseText}</span><span class="aa-current-info">${esc(current)}${sub ? ' <span style="color:var(--text2)">· ' + esc(sub) + '</span>' : ''}</span>`;
+            }
+        }
+        const fillApplied = document.getElementById('dprog-applied');
+        const fillPage = document.getElementById('dprog-page');
+        const valApplied = document.getElementById('dprog-applied-val');
+        const valPage = document.getElementById('dprog-page-val');
+        if (fillApplied) {
+            const pct = maxApply ? Math.min(100, (applied / maxApply) * 100) : 0;
+            fillApplied.style.width = pct + '%';
+            if (valApplied) valApplied.textContent = `${applied || 0} / ${maxApply || '∞'}`;
+        }
+        if (fillPage) {
+            const pct = page ? Math.min(100, (page / 10) * 100) : 0;
+            fillPage.style.width = pct + '%';
+            if (valPage) valPage.textContent = `${page || 0} / ${maxApply ? Math.ceil(maxApply / 20) : '∞'}`;
+        }
     });
 });
 window.api.onAutoApplyDone(({ success, message }) => {
@@ -966,7 +1086,27 @@ window.api.onAutoApplyDone(({ success, message }) => {
     aaStopBtn.style.display  = 'none';
     aaStopBtn.disabled = false;
     aaScheduleStatus.style.display = 'none';
+    const detailed = document.getElementById('aaDetailed');
+    const currentEl = document.getElementById('aaCurrent');
+    if (detailed) detailed.style.display = 'none';
+    if (currentEl) currentEl.style.display = 'none';
+    setAaLock(false);
 });
+
+function setAaLock(locked) {
+    document.getElementById('tab-autoapply').classList.toggle('aa-locked', locked);
+}
+
+async function refreshAaStatus() {
+    const { running } = await window.api.autoApplyStatus();
+    aaRunning = running;
+    aaStartBtn.style.display = running ? 'none' : '';
+    aaStopBtn.style.display  = running ? '' : 'none';
+    aaStopBtn.disabled = false;
+    aaLogCard.style.display = running || aaLog.children.length ? '' : 'none';
+    aaStats.style.display = running ? 'flex' : 'none';
+    setAaLock(running);
+}
 
 // ===================== NEGOTIATIONS TAB =====================
 const negoRefreshBtn = document.getElementById('negoRefreshBtn');
@@ -1265,6 +1405,7 @@ async function fetchResumes() {
     if (!res.ok) return;
     resumesData = res.data || [];
     renderResumes();
+    renderResumeDropdown();
 }
 
 function renderResumes() {
@@ -1371,8 +1512,10 @@ async function loadSettings() {
     setTemplatesEl.innerHTML = '';
     const tpls = s.coverLetters || [];
     if (tpls.length) tpls.forEach(t => addSettingsTemplateRow(t));
-    else addSettingsTemplateRow('Добрый день! Меня заинтересовала вакансия «{title}» в компании {employer}. Буду рад обсудить детали.');
+    else addSettingsTemplateRow('Привет! Хочу откликнуться на вакансию <{title}> в компании {employer}. Буду рад обсудить детали.');
     renderResumes();
+    renderResumeDropdown();
+    applyAutoApplyConfig(loadAutoApplyConfig());
     refreshSettingsAuth();
     loadAppInfo();
 }

@@ -1,4 +1,4 @@
-const { chromium } = require('playwright-extra');
+﻿const { chromium } = require('playwright-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
 const fs = require('fs');
 const path = require('path');
@@ -362,7 +362,7 @@ class AutoApply extends EventEmitter {
 
             while (!this._stopped && applied < maxApply && page <= maxPages) {
                 this.log(`📄 Страница ${page}...`);
-                this.emit('progress', { applied, skipped, errors, page });
+                this.emit('progress', { applied, skipped, errors, page, maxApply, phase: 'scanning', seenIds: this._seenIds.size });
 
                 const params = this._buildSearchParams(searchParams);
                 if (page > 1) params.set('page', page - 1);
@@ -417,7 +417,7 @@ class AutoApply extends EventEmitter {
                         applied++; newOnPage++;
                         this.log(`🧪 [DRY-RUN] Отклик: ${v.title} — ${v.employer || '—'} ${v.salary ? '· ' + v.salary : ''}`);
                         this._seenIds.add(v.id);
-                        this.emit('progress', { applied, skipped, errors, page });
+                        this.emit('progress', { applied, skipped, errors, page, maxApply, phase: 'applied', current: v.title, employer: v.employer, salary: v.salary, seenIds: this._seenIds.size });
                         continue;
                     }
 
@@ -447,13 +447,13 @@ class AutoApply extends EventEmitter {
                         errors++;
                         if (maxErrors > 0 && errors >= maxErrors) {
                             this.log(`⏹ Лимит ошибок (${maxErrors}) — остановка`);
-                            this.emit('progress', { applied, skipped, errors, page });
+                            this.emit('progress', { applied, skipped, errors, page, maxApply, phase: 'scanning', seenIds: this._seenIds.size });
                             break;
                         }
                     }
 
                     this._seenIds.add(v.id);
-                    this.emit('progress', { applied, skipped, errors, page });
+                    this.emit('progress', { applied, skipped, errors, page, maxApply, phase: 'applied', current: v.title, employer: v.employer, salary: v.salary, seenIds: this._seenIds.size });
 
                     if (applied < maxApply && !this._stopped) {
                         const wait = Math.floor(Math.random() * (delayMax - delayMin) + delayMin);

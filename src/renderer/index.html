@@ -479,10 +479,27 @@
     </div>
   </div>
 
+  <div id="aaDetailed" style="display:none; margin-bottom:16px">
+    <div id="aaCurrent" class="aa-current" style="display:none"></div>
+    <div class="dash-prog">
+      <div class="dash-prog-row">
+        <span class="dash-prog-label">Откликаемся</span>
+        <div class="dash-prog-bar"><div class="dash-prog-fill" id="dprog-applied" style="width:0%"></div></div>
+        <span class="dash-prog-val" id="dprog-applied-val">0 / 0</span>
+      </div>
+      <div class="dash-prog-row">
+        <span class="dash-prog-label">Страница</span>
+        <div class="dash-prog-bar"><div class="dash-prog-fill" id="dprog-page" style="width:0%"></div></div>
+        <span class="dash-prog-val" id="dprog-page-val">0 / 0</span>
+      </div>
+    </div>
+  </div>
+
   <div class="two-col">
     <div class="card">
       <div class="card-title"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg> Параметры поиска</div>
-      <div class="form-group"><label>Запрос</label><input id="aa-text" type="text" placeholder="Python разработчик"></div>
+      <div class="form-group"><label>Резюме для отклика</label><select id="aa-resume"><option value="0">Загрузите резюме в Настройках</option></select></div>
+      <div class="form-group" style="margin-top:10px"><label>Запрос</label><input id="aa-text" type="text" placeholder="Python разработчик"></div>
       <div class="form-group" style="margin-top:10px"><label>Регион (код, через запятую)</label><input id="aa-area" type="text" placeholder="1 = Москва, 2 = СПб"></div>
       <div class="form-group" style="margin-top:10px">
         <label>Опыт</label>

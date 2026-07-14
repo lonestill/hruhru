@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('api', {
     // Auto-apply
     autoApplyStart:   (c)    => ipcRenderer.invoke('autoapply:start', c),
     autoApplyStop:    ()     => ipcRenderer.invoke('autoapply:stop'),
+    autoApplyStatus:  ()     => ipcRenderer.invoke('autoapply:status'),
     onAutoApplyLog:   (cb)   => ipcRenderer.on('autoapply:log',      (_e, m) => cb(m)),
     onAutoApplyProgress:(cb) => ipcRenderer.on('autoapply:progress', (_e, s) => cb(s)),
     onAutoApplyDone:  (cb)   => ipcRenderer.on('autoapply:done',     (_e, r) => cb(r)),

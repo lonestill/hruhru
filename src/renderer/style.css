@@ -1170,3 +1170,34 @@ mark { background: var(--accent-bg); color: var(--accent2); border-radius: 3px; 
   min-width: 14px; text-align: center;
   pointer-events: none;
 }
+
+/* ---- Auto-apply locked state ---- */
+#tab-autoapply.aa-locked .two-col,
+#tab-autoapply.aa-locked > .card {
+  pointer-events: none;
+  opacity: .5;
+  filter: saturate(.5);
+}
+
+/* ---- Detailed progress ---- */
+.dash-prog { display: flex; flex-direction: column; gap: 8px; }
+.dash-prog-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+.dash-prog-label { color: var(--text2); min-width: 90px; }
+.dash-prog-bar { flex: 1; height: 6px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+.dash-prog-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s ease; }
+.dash-prog-val { color: var(--text); font-variant-numeric: tabular-nums; min-width: 50px; text-align: right; }
+.aa-current {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--accent-bg); border: 1px solid rgba(99,102,241,.2);
+  border-radius: var(--r-md); padding: 10px 14px;
+  font-size: 13px; margin-bottom: 10px;
+}
+.aa-current-phase {
+  font-size: 11px; font-weight: 600; padding: 2px 8px;
+  background: var(--accent); color: #fff; border-radius: 4px;
+  text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
+}
+.aa-current-info {
+  flex: 1; min-width: 0; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}

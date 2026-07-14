@@ -271,7 +271,7 @@ ipcMain.handle('autoapply:start', async (_e, config) => {
     const settings = loadSettings();
     autoApply = new AutoApply({
         ...config,
-        resumeIndex: settings.resumeIndex || 0,
+        resumeIndex: config.resumeIndex !== undefined ? config.resumeIndex : (settings.resumeIndex || 0),
         delayMin: (settings.delayMin || 8) * 1000,
         delayMax: (settings.delayMax || 15) * 1000,
         filters: {
@@ -290,6 +290,8 @@ ipcMain.handle('autoapply:stop', () => {
     if (autoApply) { autoApply.stop(); autoApply = null; }
     return { ok: true };
 });
+
+ipcMain.handle('autoapply:status', () => ({ running: !!autoApply }));
 
 // ===================== NEGOTIATIONS =====================
 ipcMain.handle('negotiations:load', async () => {
